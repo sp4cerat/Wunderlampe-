@@ -1,0 +1,340 @@
+/* ===========================================================
+   2D Schach — Stylesheet
+   Ergänzt Tailwind um Board-Geometrie, Animationen und
+   spezifische Farbgebung der Felder & Figuren.
+   =========================================================== */
+
+:root {
+  --sq-size: clamp(36px, 10vw, 64px);
+  --board-size: calc(var(--sq-size) * 8);
+  --light: #e9d7b3;
+  --dark:  #9a6b3f;
+  --light-sel: #f7e29b;
+  --dark-sel:  #c89a3a;
+  --hint:   #22c55e;
+  --warn:   #ef4444;
+  --last:   #f5a623;
+}
+
+/* Brett-Wrapper liefert Platz für Koordinaten am Rand */
+.board-wrap {
+  position: relative;
+  width: var(--board-size);
+  max-width: 100%;
+  padding: 0 14px 18px 18px; /* Platz für Ranks links & Files unten */
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.board {
+  width: var(--board-size);
+  height: var(--board-size);
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.05),
+    0 24px 60px -20px rgba(0,0,0,0.8),
+    0 8px 18px -8px rgba(0,0,0,0.6);
+}
+
+.sq {
+  position: relative;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  cursor: default;
+  transition: background-color 80ms linear;
+}
+.sq.light { background: var(--light); }
+.sq.dark  { background: var(--dark);  }
+
+.sq.selectable { cursor: pointer; }
+
+/* Selektion */
+.sq.selected.light { background: var(--light-sel); }
+.sq.selected.dark  { background: var(--dark-sel);  }
+
+/* Letzter Zug — leicht eingefärbt */
+.sq.lastmove.light { background: #f0d27a; }
+.sq.lastmove.dark  { background: #b58643; }
+
+/* Check-Highlight (sanftes Pulsen) */
+.sq.check::after {
+  content:"";
+  position:absolute; inset:0;
+  border-radius: 0;
+  box-shadow: inset 0 0 0 3px var(--warn);
+  animation: pulse 1.6s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes pulse {
+  0%,100% { opacity:.65 }
+  50%     { opacity:1 }
+}
+
+/* Hint-Punkt für freie Zielfelder */
+.sq.hint::before {
+  content:"";
+  position:absolute;
+  width: 28%; height: 28%;
+  border-radius: 999px;
+  background: rgba(34,197,94,0.55);
+  pointer-events:none;
+}
+/* Capture-Ring für Schlag-Felder */
+.sq.capture::before {
+  content:"";
+  position:absolute; inset: 6%;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 4px rgba(34,197,94,0.75);
+  pointer-events:none;
+}
+/* Tipp-Felder (von/nach) */
+.sq.tipfrom::after,
+.sq.tipto::after {
+  content:"";
+  position:absolute; inset:0;
+  box-shadow: inset 0 0 0 3px #7aa2ff;
+  pointer-events:none;
+  animation: tipFade 1.8s ease-out forwards;
+}
+@keyframes tipFade {
+  0%   { opacity: 1 }
+  100% { opacity: 0 }
+}
+
+/* Figur — Issue 3: Inline-SVG statt Unicode-Glyphen.
+   Vorher: System-Font-Renderer (insb. Samsung One UI / Noto Sans Symbols)
+   zeichneten die "gefüllten" Glyphen ♚♛♜♝♞♟ mit eigener Innendetail-
+   Schraffur, die CSS-`color` partiell ignorierte → weiße Figuren wirkten
+   trotz `color:#ffffff` grau bis fast schwarz. Mit SVG steuern wir Fill und
+   Stroke selbst, via CSS-Variablen --p-fill und --p-stroke.
+   Die SVGs (viewBox 0 0 45 45) füllen den Square zu ~88 %. */
+.piece {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.piece svg {
+  width: 88%;
+  height: 88%;
+  display: block;
+  /* Sanfter Drop-Shadow für Tiefe, ohne die Fläche zu verdunkeln. */
+  filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.55));
+}
+.piece-w {
+  --p-fill:   #ffffff;
+  --p-stroke: #1a1a1a;
+}
+.piece-b {
+  /* Issue 5: Fill weiter aufgehellt auf #707070 (Issue 4 hatte #3a3a3a,
+     war auf kleinen Squares immer noch zu dunkel). Stroke bleibt #1a1a1a
+     für klare Kontur gegen den hellen Square. */
+  --p-fill:   #707070;
+  --p-stroke: #1a1a1a;
+}
+
+/* Animation eines Zugs */
+.piece.moving {
+  z-index: 5;
+  will-change: transform;
+  transition: transform 220ms cubic-bezier(.22,.61,.36,1);
+}
+
+/* ----- Koordinaten ----- */
+.coord {
+  position: absolute;
+  pointer-events: none;
+  color: rgba(230, 232, 238, 0.55);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.coord-files {
+  left: 18px; right: 14px;
+  bottom: 2px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+}
+.coord-files span {
+  text-align: center;
+}
+.coord-ranks {
+  top: 0;
+  left: 4px;
+  height: var(--board-size);
+  display: grid;
+  grid-template-rows: repeat(8, 1fr);
+  align-items: center;
+  justify-items: center;
+  width: 14px;
+}
+
+/* ----- Thinking overlay ----- */
+.thinking-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(11, 13, 18, 0.35);
+  backdrop-filter: blur(1px);
+  z-index: 20;
+}
+.loader-dot {
+  width: 8px; height: 8px;
+  background: #7aa2ff;
+  border-radius: 999px;
+  display: inline-block;
+  animation: bounce 1s infinite ease-in-out;
+}
+@keyframes bounce {
+  0%,80%,100% { transform: translateY(0); opacity: .5; }
+  40%         { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ----- Captured pieces ----- */
+.captured {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 4px 2px;
+  line-height: 1;
+}
+.captured .cap-white,
+.captured .cap-black {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  margin-right: -4px; /* leichtes Überlappen wie früher mit letter-spacing */
+  flex-shrink: 0;
+}
+.captured .cap-white svg,
+.captured .cap-black svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.45));
+}
+.captured .cap-white { --p-fill: #ffffff; --p-stroke: #1a1a1a; }
+.captured .cap-black { --p-fill: #707070; --p-stroke: #1a1a1a; }
+.captured .cap-spacer { width: 6px; }
+.captured .adv {
+  margin-left: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #8a93a6;
+}
+
+/* ----- Buttons ----- */
+.btn-primary {
+  background: linear-gradient(180deg, #5d83eb, #4a6dd1);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 4px 12px -4px rgba(74,109,209,0.4);
+  transition: filter 100ms ease, transform 80ms ease;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-secondary {
+  background: #1c2230;
+  color: #e6e8ee;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid #2a3142;
+  transition: background 100ms ease;
+}
+.btn-secondary:hover { background: #232a3c; }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.diff-btn, .color-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: #8a93a6;
+  padding: 0.45rem 0.4rem;
+  border-radius: 0.4rem;
+  background: transparent;
+  transition: background 100ms ease, color 100ms ease;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.diff-btn:hover, .color-btn:hover {
+  color: #e6e8ee;
+  background: rgba(255,255,255,0.04);
+}
+.diff-btn.active, .color-btn.active {
+  color: #e6e8ee;
+  background: #2a3142;
+  border-color: #3a4458;
+}
+
+/* ----- Move list ----- */
+#moveList .row {
+  display: grid;
+  grid-template-columns: 32px 1fr 1fr;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+#moveList .row:nth-child(odd) { background: rgba(255,255,255,0.02); }
+#moveList .row .num { color: #8a93a6; }
+#moveList .row .move { color: #e6e8ee; padding: 0 2px; }
+#moveList .row .move.muted { color: #8a93a6; }
+
+/* ----- Modals ----- */
+.modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  padding: 1rem;
+  animation: fadeIn 150ms ease-out;
+}
+.modal.hidden { display: none; }
+.modal-card {
+  background: #141821;
+  border: 1px solid #2a3142;
+  border-radius: 0.875rem;
+  padding: 1.25rem;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,0.6);
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.promo-btn {
+  background: #1c2230;
+  border: 1px solid #2a3142;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 100ms ease;
+}
+.promo-btn:hover { background: #2a3142; }
+.promo-btn .promo-piece {
+  width: 44px;
+  height: 44px;
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 1024px) {
+  :root { --sq-size: clamp(36px, 11vw, 60px); }
+}

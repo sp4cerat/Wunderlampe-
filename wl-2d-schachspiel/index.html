@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>2D Schach · Wunderlampe</title>
+  <meta name="description" content="2D-Schach gegen einen Computergegner mit verstellbarer Spielstärke." />
+  <meta name="theme-color" content="#0b0d12" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg:    '#0b0d12',
+            panel: '#141821',
+            panel2:'#1c2230',
+            line:  '#2a3142',
+            text:  '#e6e8ee',
+            mute:  '#8a93a6',
+            light: '#e9d7b3',
+            dark:  '#9a6b3f',
+            sel:   '#f7cf5a',
+            hint:  '#22c55e',
+            warn:  '#ef4444',
+            accent:'#7aa2ff'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chess.js@0.12.1/chess.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-bg text-text font-sans antialiased min-h-screen">
+
+  <header class="border-b border-line/60 backdrop-blur sticky top-0 z-30 bg-bg/80">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-panel2 grid place-items-center text-xl">
+        <span aria-hidden="true">♞</span>
+      </div>
+      <div class="flex-1">
+        <h1 class="text-lg sm:text-xl font-semibold tracking-tight">2D Schach</h1>
+        <p class="text-xs text-mute -mt-0.5">Spiele gegen den Computer · stufenlos verstellbar</p>
+      </div>
+      <button id="btnRules" class="text-mute hover:text-text text-sm px-2 py-1 rounded hover:bg-panel2 transition">Regeln</button>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-4 sm:py-6">
+    <div class="grid lg:grid-cols-[1fr_320px] gap-6">
+
+      <!-- LEFT: Board -->
+      <section class="space-y-4">
+
+        <!-- Status bar -->
+        <div class="flex flex-wrap items-center gap-3 bg-panel rounded-xl border border-line/60 p-3">
+          <div id="turnIndicator" class="flex items-center gap-2 text-sm">
+            <span id="turnDot" class="inline-block w-2.5 h-2.5 rounded-full bg-light"></span>
+            <span id="turnText" class="font-medium">Weiß am Zug</span>
+          </div>
+          <div class="h-5 w-px bg-line"></div>
+          <div id="aiState" class="text-sm text-mute">Bereit</div>
+          <div class="flex-1"></div>
+          <div id="evalDisplay" class="text-xs text-mute font-mono" title="Material-Bewertung">±0.0</div>
+        </div>
+
+        <!-- Captured by player at top (= computer's captures) -->
+        <div id="capturedTop" class="captured min-h-[28px] text-xl"></div>
+
+        <!-- Board container -->
+        <div class="relative">
+          <div id="boardWrap" class="board-wrap mx-auto">
+            <div id="board" class="board" role="grid" aria-label="Schachbrett"></div>
+            <div id="files" class="coord coord-files" aria-hidden="true"></div>
+            <div id="ranks" class="coord coord-ranks" aria-hidden="true"></div>
+          </div>
+          <div id="thinkingOverlay" class="thinking-overlay hidden">
+            <div class="flex items-center gap-2 bg-panel/90 border border-line rounded-full px-4 py-2 shadow-2xl">
+              <span class="loader-dot"></span>
+              <span class="loader-dot" style="animation-delay:.15s"></span>
+              <span class="loader-dot" style="animation-delay:.3s"></span>
+              <span class="text-sm ml-1">Computer denkt nach…</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Captured by computer at bottom (= player's captures) -->
+        <div id="capturedBottom" class="captured min-h-[28px] text-xl"></div>
+
+      </section>
+
+      <!-- RIGHT: Controls + History -->
+      <aside class="space-y-4">
+
+        <!-- Controls -->
+        <div class="bg-panel rounded-xl border border-line/60 p-4 space-y-4">
+          <h2 class="text-sm font-semibold text-mute uppercase tracking-wider">Einstellungen</h2>
+
+          <div class="space-y-2">
+            <label class="text-sm text-mute" for="difficulty">Schwierigkeit</label>
+            <div id="difficulty" class="grid grid-cols-4 gap-1.5 bg-bg/60 p-1 rounded-lg border border-line/60" role="tablist">
+              <button data-level="1" class="diff-btn">Sehr leicht</button>
+              <button data-level="2" class="diff-btn">Leicht</button>
+              <button data-level="3" class="diff-btn">Mittel</button>
+              <button data-level="4" class="diff-btn">Schwer</button>
+            </div>
+            <p id="diffHint" class="text-xs text-mute"></p>
+          </div>
+
+          <div class="space-y-2">
+            <span class="text-sm text-mute block">Deine Farbe</span>
+            <div class="grid grid-cols-3 gap-1.5 bg-bg/60 p-1 rounded-lg border border-line/60">
+              <button data-color="white"  class="color-btn">♔ Weiß</button>
+              <button data-color="random" class="color-btn">🎲 Zufall</button>
+              <button data-color="black"  class="color-btn">♚ Schwarz</button>
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-1">
+            <button id="btnNew"  class="btn-primary flex-1">Neue Partie</button>
+            <button id="btnUndo" class="btn-secondary flex-1">Zurück</button>
+          </div>
+          <div class="flex gap-2">
+            <button id="btnFlip" class="btn-secondary flex-1">Brett drehen</button>
+            <button id="btnHint" class="btn-secondary flex-1">Tipp</button>
+          </div>
+
+          <label class="flex items-center gap-2 text-xs text-mute select-none pt-1">
+            <input id="optAnimate" type="checkbox" class="accent-accent" checked />
+            Bewegungen animieren
+          </label>
+        </div>
+
+        <!-- Move history -->
+        <div class="bg-panel rounded-xl border border-line/60 p-4 flex flex-col" style="max-height:420px;">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-sm font-semibold text-mute uppercase tracking-wider">Zugliste</h2>
+            <span id="moveCount" class="text-xs text-mute">0 Züge</span>
+          </div>
+          <div id="moveList" class="text-sm font-mono overflow-auto flex-1 min-h-0 pr-1"></div>
+        </div>
+
+      </aside>
+    </div>
+  </main>
+
+  <!-- Promotion modal -->
+  <div id="promoModal" class="modal hidden">
+    <div class="modal-card">
+      <h3 class="text-lg font-semibold mb-1">Bauernumwandlung</h3>
+      <p class="text-sm text-mute mb-4">Wähle die neue Figur:</p>
+      <div id="promoChoices" class="grid grid-cols-4 gap-2"></div>
+    </div>
+  </div>
+
+  <!-- Game over modal -->
+  <div id="overModal" class="modal hidden">
+    <div class="modal-card text-center">
+      <div id="overIcon" class="text-5xl mb-2">♟</div>
+      <h3 id="overTitle" class="text-xl font-semibold mb-1">Partie beendet</h3>
+      <p id="overDesc" class="text-sm text-mute mb-4">—</p>
+      <div class="flex gap-2">
+        <button id="overClose" class="btn-secondary flex-1">Schließen</button>
+        <button id="overNew"   class="btn-primary flex-1">Neue Partie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rules modal -->
+  <div id="rulesModal" class="modal hidden">
+    <div class="modal-card max-w-lg">
+      <h3 class="text-lg font-semibold mb-2">Kurz-Regeln</h3>
+      <ul class="text-sm text-mute space-y-1.5 list-disc pl-5 mb-4">
+        <li>Klick auf deine Figur → sie wird gelb umrandet, mögliche Felder werden mit grünen Punkten markiert.</li>
+        <li>Klick auf ein markiertes Feld zieht. Klick woanders bricht ab.</li>
+        <li>Rochade: König anklicken und zwei Felder zur Turmseite ziehen.</li>
+        <li>Bauernumwandlung: Beim Erreichen der letzten Reihe öffnet sich ein Auswahldialog.</li>
+        <li>Mit <em>Zurück</em> nimmst du deinen letzten Zug (und die Antwort des Computers) zurück.</li>
+        <li>Mit <em>Tipp</em> bekommst du eine empfohlene Antwort vorgeschlagen.</li>
+      </ul>
+      <button id="rulesClose" class="btn-primary w-full">Verstanden</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
