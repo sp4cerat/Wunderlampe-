@@ -1,0 +1,11 @@
+# Wunderlampe-Default — wird in jeden Projekt-Unterordner kopiert
+node_modules/
+.env
+.env.local
+*.log
+.DS_Store
+dist/
+build/
+.cache/
+uploads/
+history/

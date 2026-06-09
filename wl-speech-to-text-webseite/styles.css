@@ -1,0 +1,42 @@
+/* Subtle background gradient for depth */
+body {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.12), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 110%, rgba(168, 85, 247, 0.08), transparent 70%),
+    #020617;
+}
+
+/* Custom scrollbar for the textarea (Chromium) */
+textarea::-webkit-scrollbar {
+  width: 10px;
+}
+textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+textarea::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.25);
+  border-radius: 9999px;
+}
+textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.45);
+}
+
+/* Native select dropdown arrow */
+select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0 center;
+  background-size: 14px;
+  padding-right: 18px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+select option {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Smooth focus ring transitions */
+button, textarea, select {
+  transition: box-shadow 150ms ease, background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}

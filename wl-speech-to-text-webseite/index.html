@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speech-to-Text</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500/40">
+
+  <div class="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-8 sm:py-12">
+
+    <header class="mb-8 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/20 ring-1 ring-indigo-400/40">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-indigo-300">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+          </svg>
+        </span>
+        <div>
+          <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Speech-to-Text</h1>
+          <p class="text-xs text-slate-400">Sprache → Text, direkt im Browser</p>
+        </div>
+      </div>
+
+      <div id="status" class="flex items-center gap-2 text-xs text-slate-400">
+        <span id="statusDot" class="h-2 w-2 rounded-full bg-slate-600"></span>
+        <span id="statusLabel">bereit</span>
+      </div>
+    </header>
+
+    <!-- Unsupported-Warning -->
+    <div id="unsupported" class="mb-6 hidden rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+      Dein Browser unterstützt die Web Speech API nicht. Bitte nutze Chrome, Edge oder einen anderen Chromium-basierten Browser.
+    </div>
+
+    <!-- Toolbar -->
+    <section class="mb-3 flex flex-wrap items-center gap-2">
+      <button id="toggleBtn"
+              class="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-50">
+        <svg id="toggleIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" y1="19" x2="12" y2="23" />
+          <line x1="8" y1="23" x2="16" y2="23" />
+        </svg>
+        <span id="toggleLabel">Aufnahme starten</span>
+      </button>
+
+      <label class="ml-auto inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm">
+        <span class="text-slate-400">Sprache</span>
+        <select id="langSelect" class="bg-transparent text-slate-100 focus:outline-none">
+          <option value="de-DE">Deutsch (DE)</option>
+          <option value="en-US">English (US)</option>
+          <option value="en-GB">English (UK)</option>
+          <option value="fr-FR">Français</option>
+          <option value="es-ES">Español</option>
+          <option value="it-IT">Italiano</option>
+          <option value="nl-NL">Nederlands</option>
+          <option value="pt-PT">Português</option>
+          <option value="ru-RU">Русский</option>
+          <option value="ja-JP">日本語</option>
+          <option value="zh-CN">中文 (简体)</option>
+        </select>
+      </label>
+    </section>
+
+    <!-- Textarea -->
+    <section class="relative flex-1">
+      <textarea id="output"
+                placeholder="Transkription erscheint hier…"
+                spellcheck="false"
+                class="h-full min-h-[320px] w-full resize-none rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-base leading-relaxed text-slate-100 shadow-inner placeholder:text-slate-500 focus:border-indigo-500/60 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"></textarea>
+
+      <span id="interim" class="pointer-events-none absolute bottom-3 left-4 right-24 truncate text-sm italic text-slate-400/80"></span>
+    </section>
+
+    <!-- Action-Row -->
+    <section class="mt-3 flex flex-wrap items-center gap-2">
+      <button id="copyBtn"
+              class="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        <span id="copyLabel">Kopieren</span>
+      </button>
+
+      <button id="clearBtn"
+              class="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-transparent px-3 py-2 text-sm text-slate-400 transition hover:border-slate-700 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          <path d="M10 11v6" />
+          <path d="M14 11v6" />
+        </svg>
+        Leeren
+      </button>
+
+      <span id="charCount" class="ml-auto text-xs text-slate-500">0 Zeichen</span>
+    </section>
+
+    <footer class="mt-8 border-t border-slate-800 pt-4 text-center text-xs text-slate-500">
+      Sprache wird lokal im Browser verarbeitet — keine Audiodaten verlassen dein Gerät.
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
