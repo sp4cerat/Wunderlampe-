@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Color Picker · Toolkit</title>
+  <meta name="description" content="RGB / HEX / HSL Picker mit Palette und WCAG-Kontrast." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-5xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">Color Picker</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-4xl px-6 py-8 space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">Color Picker</h1>
+      <p class="mt-1 text-sm text-zinc-400">Wähle eine Farbe, kopiere HEX/RGB/HSL und prüfe Kontrast gegen Schwarz und Weiß.</p>
+    </header>
+
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-5">
+      <div class="grid sm:grid-cols-[14rem_1fr] gap-5 items-start">
+        <div>
+          <input id="picker" type="color" value="#34d399" class="h-44 w-full rounded-lg border border-zinc-800 bg-transparent cursor-pointer" />
+          <input id="hex" type="text" value="#34d399" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 px-3 py-2 text-center font-mono uppercase" />
+        </div>
+        <div class="grid gap-3 text-sm">
+          <div class="grid grid-cols-3 gap-2">
+            <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">R</span><input id="r" type="number" min="0" max="255" class="cf"></label>
+            <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">G</span><input id="g" type="number" min="0" max="255" class="cf"></label>
+            <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">B</span><input id="b" type="number" min="0" max="255" class="cf"></label>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">H°</span><input id="h" type="number" min="0" max="360" class="cf"></label>
+            <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">S%</span><input id="s" type="number" min="0" max="100" class="cf"></label>
+            <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">L%</span><input id="l" type="number" min="0" max="100" class="cf"></label>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-2">
+            <button data-format="hex"  class="copyBtn rounded-md border border-zinc-800 hover:bg-zinc-800 px-3 py-2 text-left">HEX kopieren</button>
+            <button data-format="rgb"  class="copyBtn rounded-md border border-zinc-800 hover:bg-zinc-800 px-3 py-2 text-left">RGB kopieren</button>
+            <button data-format="hsl"  class="copyBtn rounded-md border border-zinc-800 hover:bg-zinc-800 px-3 py-2 text-left">HSL kopieren</button>
+            <button data-format="rgba" class="copyBtn rounded-md border border-zinc-800 hover:bg-zinc-800 px-3 py-2 text-left">RGBA(0.8)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg border border-zinc-800 overflow-hidden grid grid-cols-2 text-center text-sm font-mono">
+        <div id="onWhite" class="py-4">Sample · WCAG —</div>
+        <div id="onBlack" class="py-4 text-white" style="background:#000">Sample · WCAG —</div>
+      </div>
+
+      <div>
+        <h3 class="text-sm font-medium text-zinc-300 mb-2">Harmonien</h3>
+        <div id="harmonies" class="grid grid-cols-5 gap-2"></div>
+      </div>
+    </div>
+  </main>
+
+  <style>
+    .cf { width:100%; margin-top:.4rem; border-radius:.375rem; background:#09090b; border:1px solid #27272a; padding:.45rem .6rem; font-family:ui-monospace,monospace }
+    .cf:focus { outline:none; border-color:#34d399 }
+  </style>
+
+  <script src="../app.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const picker = $('picker'), hex = $('hex');
+    let updating = false;
+
+    function rgbToHex({r,g,b}) { return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('').toUpperCase(); }
+    function hexToRgb(h) {
+      let s = h.replace(/^#/, '');
+      if (s.length === 3) s = s.split('').map(c => c+c).join('');
+      if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+      return { r: parseInt(s.slice(0,2),16), g: parseInt(s.slice(2,4),16), b: parseInt(s.slice(4,6),16) };
+    }
+    function rgbToHsl({r,g,b}) {
+      r/=255; g/=255; b/=255;
+      const max = Math.max(r,g,b), min = Math.min(r,g,b);
+      let h, s, l = (max + min) / 2;
+      if (max === min) { h = s = 0; }
+      else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          default: h = (r - g) / d + 4;
+        }
+        h *= 60;
+      }
+      return { h: Math.round(h), s: Math.round(s*100), l: Math.round(l*100) };
+    }
+    function hslToRgb({h,s,l}) {
+      s/=100; l/=100;
+      const c = (1 - Math.abs(2*l - 1)) * s;
+      const x = c * (1 - Math.abs(((h/60) % 2) - 1));
+      const m = l - c/2;
+      let r=0,g=0,b=0;
+      if (0<=h&&h<60){r=c;g=x;}
+      else if (h<120){r=x;g=c;}
+      else if (h<180){g=c;b=x;}
+      else if (h<240){g=x;b=c;}
+      else if (h<300){r=x;b=c;}
+      else {r=c;b=x;}
+      return { r: Math.round((r+m)*255), g: Math.round((g+m)*255), b: Math.round((b+m)*255) };
+    }
+    function relLum({r,g,b}) {
+      const f = v => { v/=255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+      return 0.2126*f(r) + 0.7152*f(g) + 0.0722*f(b);
+    }
+    function contrast(a, b) {
+      const l1 = relLum(a), l2 = relLum(b);
+      return ((Math.max(l1,l2) + 0.05) / (Math.min(l1,l2) + 0.05));
+    }
+    function wcagLabel(c) {
+      if (c >= 7) return 'AAA';
+      if (c >= 4.5) return 'AA';
+      if (c >= 3) return 'AA-Large';
+      return 'fail';
+    }
+
+    function setFromRgb(rgb) {
+      updating = true;
+      const h = rgbToHex(rgb), hsl = rgbToHsl(rgb);
+      picker.value = h.toLowerCase();
+      hex.value = h;
+      $('r').value = rgb.r; $('g').value = rgb.g; $('b').value = rgb.b;
+      $('h').value = hsl.h; $('s').value = hsl.s; $('l').value = hsl.l;
+      // contrast samples
+      const css = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+      const wEl = $('onWhite'), bEl = $('onBlack');
+      wEl.style.background = '#fff'; wEl.style.color = css;
+      bEl.style.background = '#000'; bEl.style.color = css;
+      const cw = contrast(rgb, {r:255,g:255,b:255});
+      const cb = contrast(rgb, {r:0,g:0,b:0});
+      wEl.textContent = `auf Weiß · ${cw.toFixed(2)} · ${wcagLabel(cw)}`;
+      bEl.textContent = `auf Schwarz · ${cb.toFixed(2)} · ${wcagLabel(cb)}`;
+      // harmonies
+      $('harmonies').innerHTML = [0, 30, 180, 210, 330].map(off => {
+        const harmH = ((hsl.h + off) % 360 + 360) % 360;
+        const harm = hslToRgb({ h: harmH, s: hsl.s, l: hsl.l });
+        const harmHex = rgbToHex(harm);
+        return `<button class="rounded-md h-12 ring-1 ring-zinc-800" title="${harmHex}" style="background:${harmHex}" onclick="window.__pick('${harmHex}')"></button>`;
+      }).join('');
+      updating = false;
+    }
+    window.__pick = h => { const r = hexToRgb(h); if (r) setFromRgb(r); };
+
+    picker.addEventListener('input', e => { const r = hexToRgb(e.target.value); if (r) setFromRgb(r); });
+    hex.addEventListener('input', e => { const r = hexToRgb(e.target.value.trim()); if (r) setFromRgb(r); });
+    ['r','g','b'].forEach(id => $(id).addEventListener('input', () => {
+      if (updating) return;
+      const rgb = { r: +$('r').value||0, g: +$('g').value||0, b: +$('b').value||0 };
+      setFromRgb({ r: Math.min(255,Math.max(0,rgb.r)), g: Math.min(255,Math.max(0,rgb.g)), b: Math.min(255,Math.max(0,rgb.b)) });
+    }));
+    ['h','s','l'].forEach(id => $(id).addEventListener('input', () => {
+      if (updating) return;
+      const hsl = { h: +$('h').value||0, s: +$('s').value||0, l: +$('l').value||0 };
+      setFromRgb(hslToRgb({ h: ((hsl.h%360)+360)%360, s: Math.min(100,Math.max(0,hsl.s)), l: Math.min(100,Math.max(0,hsl.l)) }));
+    }));
+
+    document.querySelectorAll('.copyBtn').forEach(b => b.onclick = () => {
+      const rgb = { r:+$('r').value, g:+$('g').value, b:+$('b').value };
+      const hsl = { h:+$('h').value, s:+$('s').value, l:+$('l').value };
+      const fmt = b.dataset.format;
+      const out = fmt === 'hex' ? rgbToHex(rgb)
+                 : fmt === 'rgb' ? `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`
+                 : fmt === 'hsl' ? `hsl(${hsl.h}deg ${hsl.s}% ${hsl.l}%)`
+                 : `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`;
+      Toolkit.copy(out);
+    });
+
+    setFromRgb(hexToRgb('#34d399'));
+  </script>
+</body>
+</html>

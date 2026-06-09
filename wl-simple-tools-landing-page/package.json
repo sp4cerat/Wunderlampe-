@@ -1,0 +1,18 @@
+{
+  "name": "simple-tools",
+  "version": "1.0.0",
+  "description": "Landing page mit 15 einfachen Web-Tools für Developer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "markdown-it": "^14.1.0",
+    "multer": "^2.1.1",
+    "nanoid": "^3.3.7",
+    "pdf-lib": "^1.17.1",
+    "sharp": "^0.33.5"
+  }
+}

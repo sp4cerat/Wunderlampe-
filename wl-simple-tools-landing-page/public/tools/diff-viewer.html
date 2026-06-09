@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diff-Viewer · Toolkit</title>
+  <meta name="description" content="Zwei Texte zeilenweise vergleichen — komplett im Browser." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-6xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">Diff</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-6xl px-6 py-8 space-y-4">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">Diff-Viewer</h1>
+      <p class="mt-1 text-sm text-zinc-400">Klassische LCS-basierte Zeilen-Diff. Side-by-side oder Inline.</p>
+    </header>
+
+    <div class="grid lg:grid-cols-2 gap-4">
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <h3 class="text-sm font-medium text-zinc-300 mb-2">Original</h3>
+        <textarea id="a" rows="12" spellcheck="false" class="w-full rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 px-3 py-2 text-sm font-mono"></textarea>
+      </div>
+      <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <h3 class="text-sm font-medium text-zinc-300 mb-2">Geändert</h3>
+        <textarea id="b" rows="12" spellcheck="false" class="w-full rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 px-3 py-2 text-sm font-mono"></textarea>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between text-sm">
+      <div class="inline-flex rounded-md border border-zinc-800 overflow-hidden">
+        <button data-mode="side" class="modeBtn px-3 py-1.5 bg-zinc-900">Side-by-side</button>
+        <button data-mode="inline" class="modeBtn px-3 py-1.5">Inline</button>
+      </div>
+      <div id="stats" class="text-zinc-400"></div>
+    </div>
+
+    <div id="diff" class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 font-mono text-sm overflow-auto"></div>
+  </main>
+
+  <script src="../app.js"></script>
+  <script>
+    const a = document.getElementById('a');
+    const b = document.getElementById('b');
+    let mode = 'side';
+
+    a.value = `Hallo Welt!\nDies ist Zeile zwei.\nUnverändert.\nLetzte Zeile.`;
+    b.value = `Hallo, Welt!\nDies ist Zeile zwei mit Änderung.\nUnverändert.\nNeue Zeile vor der letzten.\nLetzte Zeile.`;
+
+    // Standard LCS-based diff producing edit script of {op,'eq'|'add'|'del', text}.
+    function diff(left, right) {
+      const m = left.length, n = right.length;
+      // Use array-of-typed-array for speed on small inputs.
+      const dp = Array.from({length: m+1}, () => new Uint16Array(n+1));
+      for (let i = m-1; i >= 0; i--) {
+        for (let j = n-1; j >= 0; j--) {
+          if (left[i] === right[j]) dp[i][j] = dp[i+1][j+1] + 1;
+          else dp[i][j] = Math.max(dp[i+1][j], dp[i][j+1]);
+        }
+      }
+      const out = [];
+      let i = 0, j = 0;
+      while (i < m && j < n) {
+        if (left[i] === right[j]) { out.push({op:'eq', a:left[i], b:right[j]}); i++; j++; }
+        else if (dp[i+1][j] >= dp[i][j+1]) { out.push({op:'del', a:left[i]}); i++; }
+        else { out.push({op:'add', b:right[j]}); j++; }
+      }
+      while (i < m) { out.push({op:'del', a:left[i++]}); }
+      while (j < n) { out.push({op:'add', b:right[j++]}); }
+      return out;
+    }
+
+    function escape(s) { return s.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+
+    function render() {
+      const left = a.value.split('\n');
+      const right = b.value.split('\n');
+      const ops = diff(left, right);
+      const adds = ops.filter(o => o.op==='add').length;
+      const dels = ops.filter(o => o.op==='del').length;
+      document.getElementById('stats').textContent = `+${adds} / -${dels} · ${ops.length} Zeilen`;
+
+      const diffEl = document.getElementById('diff');
+      if (mode === 'inline') {
+        diffEl.innerHTML = ops.map(o => {
+          const txt = escape((o.b ?? o.a) || '');
+          if (o.op === 'eq') return `<div class="diff-eq"><span class="text-zinc-600 mr-2">  </span>${txt || '&nbsp;'}</div>`;
+          if (o.op === 'add') return `<div class="diff-add"><span class="mr-2">+ </span>${txt || '&nbsp;'}</div>`;
+          return `<div class="diff-del"><span class="mr-2">- </span>${txt || '&nbsp;'}</div>`;
+        }).join('');
+      } else {
+        // side-by-side: pair adjacent del+add as substitution rows
+        const rows = [];
+        for (let k = 0; k < ops.length; k++) {
+          const o = ops[k];
+          if (o.op === 'del' && ops[k+1] && ops[k+1].op === 'add') {
+            rows.push({ l: o.a, lCls: 'diff-del', r: ops[k+1].b, rCls: 'diff-add' });
+            k++;
+          } else if (o.op === 'eq') {
+            rows.push({ l: o.a, lCls: 'diff-eq', r: o.b, rCls: 'diff-eq' });
+          } else if (o.op === 'del') {
+            rows.push({ l: o.a, lCls: 'diff-del', r: '', rCls: '' });
+          } else {
+            rows.push({ l: '', lCls: '', r: o.b, rCls: 'diff-add' });
+          }
+        }
+        diffEl.innerHTML = `<div class="grid grid-cols-2 gap-px bg-zinc-900">${rows.map(r => `
+          <div class="bg-zinc-950 px-3 py-0.5 ${r.lCls}">${escape(r.l) || '&nbsp;'}</div>
+          <div class="bg-zinc-950 px-3 py-0.5 ${r.rCls}">${escape(r.r) || '&nbsp;'}</div>
+        `).join('')}</div>`;
+      }
+    }
+
+    document.querySelectorAll('.modeBtn').forEach(btn => btn.onclick = () => {
+      mode = btn.dataset.mode;
+      document.querySelectorAll('.modeBtn').forEach(x => x.classList.remove('bg-zinc-900'));
+      btn.classList.add('bg-zinc-900');
+      render();
+    });
+    a.addEventListener('input', render);
+    b.addEventListener('input', render);
+    render();
+  </script>
+</body>
+</html>

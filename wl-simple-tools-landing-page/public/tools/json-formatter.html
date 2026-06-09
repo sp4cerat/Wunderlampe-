@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JSON Formatter · Toolkit</title>
+  <meta name="description" content="JSON validieren, einrücken oder minifizieren — komplett im Browser." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-5xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht
+      </a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">JSON Formatter</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-5xl px-6 py-8 space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">JSON Formatter / Validator</h1>
+      <p class="mt-1 text-sm text-zinc-400">Einfügen, prüfen, einrücken oder kompakt machen. Alles bleibt in deinem Browser.</p>
+    </header>
+
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+      <div class="flex flex-wrap gap-2 mb-3">
+        <button id="format" class="rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium text-sm px-3 py-1.5">Einrücken</button>
+        <button id="minify" class="rounded-md border border-zinc-800 hover:bg-zinc-800 text-sm px-3 py-1.5">Minifizieren</button>
+        <button id="sort" class="rounded-md border border-zinc-800 hover:bg-zinc-800 text-sm px-3 py-1.5">Schlüssel sortieren</button>
+        <label class="ml-2 inline-flex items-center gap-2 text-xs text-zinc-400">
+          Indent
+          <select id="indent" class="rounded-md bg-zinc-950 border border-zinc-800 text-sm px-2 py-1">
+            <option value="2" selected>2</option><option value="4">4</option><option value="\t">Tabs</option>
+          </select>
+        </label>
+        <span class="grow"></span>
+        <button id="copy" class="rounded-md border border-zinc-800 hover:bg-zinc-800 text-sm px-3 py-1.5">Kopieren</button>
+        <button id="clear" class="rounded-md border border-zinc-800 hover:bg-zinc-800 text-sm px-3 py-1.5">Leeren</button>
+      </div>
+      <textarea id="input" spellcheck="false" rows="20" placeholder='{"hello": "world", "tags": [1,2,3]}'
+        class="w-full rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 text-sm px-3 py-2 font-mono"></textarea>
+      <div id="status" class="mt-2 text-sm"></div>
+    </div>
+  </main>
+
+  <script src="../app.js"></script>
+  <script>
+    const input = document.getElementById('input');
+    const status = document.getElementById('status');
+    const indentSel = document.getElementById('indent');
+
+    function parse() {
+      const text = input.value.trim();
+      if (!text) { status.textContent = ''; return null; }
+      try {
+        const obj = JSON.parse(text);
+        status.innerHTML = '<span class="text-emerald-400">✓ Gültiges JSON</span> <span class="text-zinc-500">— ' + (typeof obj === 'object' && obj !== null ? Array.isArray(obj) ? obj.length + ' Elemente' : Object.keys(obj).length + ' Schlüssel' : typeof obj) + '</span>';
+        return obj;
+      } catch (e) {
+        status.innerHTML = '<span class="text-rose-400">✗ ' + (e.message) + '</span>';
+        return null;
+      }
+    }
+
+    function indent() {
+      const v = indentSel.value;
+      return v === '\t' ? '\t' : parseInt(v, 10);
+    }
+
+    function sortKeys(value) {
+      if (Array.isArray(value)) return value.map(sortKeys);
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.keys(value).sort().map(k => [k, sortKeys(value[k])]));
+      }
+      return value;
+    }
+
+    document.getElementById('format').onclick = () => {
+      const obj = parse(); if (obj === null) return;
+      input.value = JSON.stringify(obj, null, indent());
+      parse();
+    };
+    document.getElementById('minify').onclick = () => {
+      const obj = parse(); if (obj === null) return;
+      input.value = JSON.stringify(obj);
+      parse();
+    };
+    document.getElementById('sort').onclick = () => {
+      const obj = parse(); if (obj === null) return;
+      input.value = JSON.stringify(sortKeys(obj), null, indent());
+      parse();
+    };
+    document.getElementById('copy').onclick = () => Toolkit.copy(input.value);
+    document.getElementById('clear').onclick = () => { input.value = ''; status.textContent = ''; };
+    input.addEventListener('input', () => parse());
+  </script>
+</body>
+</html>

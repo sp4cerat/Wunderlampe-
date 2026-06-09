@@ -1,0 +1,51 @@
+/* Custom additions on top of Tailwind play CDN. */
+
+:root {
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+
+/* Smooth focus ring for inputs & buttons. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgb(52 211 153); /* emerald-400 */
+  outline-offset: 2px;
+}
+
+/* Code/textarea aesthetics. */
+textarea, .code, pre, code {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+textarea {
+  tab-size: 2;
+}
+
+/* Subtle scrollbar in dark theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 6px; }
+*::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+/* Diff line highlight backgrounds — readable on zinc-950. */
+.diff-add { background: rgba(16,185,129,0.12); color: #a7f3d0; }
+.diff-del { background: rgba(244,63,94,0.12); color: #fecdd3; text-decoration: line-through; text-decoration-color: rgba(244,63,94,0.45); }
+.diff-eq  { color: #a1a1aa; }
+
+/* Tooltip-ish toast. */
+.toast {
+  position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%);
+  background: #18181b; color: #f4f4f5; border: 1px solid #27272a;
+  border-radius: 0.5rem; padding: .5rem .9rem; font-size: .85rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  opacity: 0; transition: opacity .2s ease;
+  z-index: 50; pointer-events: none;
+}
+.toast.show { opacity: 1; }

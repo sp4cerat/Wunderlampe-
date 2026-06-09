@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crontab-Generator · Toolkit</title>
+  <meta name="description" content="Cron-Ausdrücke baukastenartig zusammenstellen mit Live-Vorschau der nächsten Ausführungen." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-5xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">Crontab</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-4xl px-6 py-8 space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">Crontab-Generator</h1>
+      <p class="mt-1 text-sm text-zinc-400">Baukasten oder Freitext — die nächsten Ausführungszeiten werden live berechnet.</p>
+    </header>
+
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-5">
+      <div class="grid sm:grid-cols-5 gap-3 text-sm">
+        <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">Minute</span><input id="f0" class="cf" value="*" /></label>
+        <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">Stunde</span><input id="f1" class="cf" value="*" /></label>
+        <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">Tag (Mon)</span><input id="f2" class="cf" value="*" /></label>
+        <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">Monat</span><input id="f3" class="cf" value="*" /></label>
+        <label class="block"><span class="text-xs uppercase tracking-wider text-zinc-400">Tag (Wo)</span><input id="f4" class="cf" value="*" /></label>
+      </div>
+
+      <div class="flex flex-wrap gap-2 text-xs">
+        <button data-preset="* * * * *"   class="cb">Jede Minute</button>
+        <button data-preset="*/5 * * * *" class="cb">Alle 5 Min</button>
+        <button data-preset="0 * * * *"   class="cb">Stündlich</button>
+        <button data-preset="0 9 * * 1-5" class="cb">Werktags 09:00</button>
+        <button data-preset="30 3 * * *"  class="cb">Täglich 03:30</button>
+        <button data-preset="0 0 1 * *"   class="cb">Monatlich</button>
+        <button data-preset="0 0 * * 0"   class="cb">Sonntags Mitternacht</button>
+        <button data-preset="@reboot"     class="cb">@reboot</button>
+      </div>
+
+      <div>
+        <label class="text-xs uppercase tracking-wider text-zinc-400">Voller Ausdruck</label>
+        <div class="mt-2 flex gap-2">
+          <input id="expr" class="grow rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 px-3 py-2 font-mono text-sm" value="* * * * *" />
+          <button id="copy" class="rounded-md border border-zinc-800 hover:bg-zinc-800 text-sm px-3">Kopieren</button>
+        </div>
+        <p id="desc" class="mt-2 text-sm text-zinc-300"></p>
+        <p id="err" class="mt-1 text-sm text-rose-400"></p>
+      </div>
+
+      <div>
+        <h2 class="text-sm font-medium text-zinc-300 mb-2">Nächste 8 Ausführungen</h2>
+        <ul id="next" class="text-sm text-zinc-400 font-mono space-y-1"></ul>
+      </div>
+    </div>
+  </main>
+
+  <style>
+    .cf { width:100%; margin-top:.5rem; border-radius:.375rem; background:#09090b; border:1px solid #27272a; padding:.5rem .75rem; font-family:ui-monospace,monospace; font-size:.875rem }
+    .cf:focus { outline:none; border-color:#34d399 }
+    .cb { border:1px solid #27272a; background:#0a0a0a; padding:.35rem .65rem; border-radius:.375rem; color:#d4d4d8 }
+    .cb:hover { background:#18181b }
+  </style>
+
+  <script src="../app.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const fields = ['f0','f1','f2','f3','f4'].map($);
+    const expr = $('expr');
+
+    const RANGES = [[0,59],[0,23],[1,31],[1,12],[0,6]];
+    const NAMES_MON = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+    const NAMES_DOW = {sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6};
+
+    // Parse one cron field into a Set of allowed integers in [lo,hi].
+    function parseField(part, [lo, hi], idx) {
+      const result = new Set();
+      const sub = part.split(',');
+      for (const s of sub) {
+        let [range, stepStr] = s.split('/');
+        const step = stepStr ? parseInt(stepStr, 10) : 1;
+        if (!Number.isFinite(step) || step <= 0) throw new Error(`Ungültiger Step in "${s}"`);
+        let from, to;
+        if (range === '*') { from = lo; to = hi; }
+        else if (range.includes('-')) {
+          const [a, b] = range.split('-').map(x => decode(x, idx));
+          from = a; to = b;
+        } else {
+          from = decode(range, idx);
+          to = stepStr ? hi : from;
+        }
+        if (!Number.isInteger(from) || !Number.isInteger(to) || from < lo || to > hi || from > to) {
+          throw new Error(`Bereich "${range}" ungültig (${lo}-${hi})`);
+        }
+        for (let i = from; i <= to; i += step) result.add(i);
+      }
+      return result;
+    }
+    function decode(token, idx) {
+      const t = token.toLowerCase();
+      if (idx === 3 && NAMES_MON[t] != null) return NAMES_MON[t];
+      if (idx === 4 && NAMES_DOW[t] != null) return NAMES_DOW[t];
+      const n = parseInt(token, 10);
+      return n;
+    }
+
+    function parseCron(s) {
+      const t = s.trim();
+      if (!t) throw new Error('leer');
+      if (t.startsWith('@')) {
+        const m = { '@yearly':'0 0 1 1 *','@annually':'0 0 1 1 *','@monthly':'0 0 1 * *','@weekly':'0 0 * * 0','@daily':'0 0 * * *','@midnight':'0 0 * * *','@hourly':'0 * * * *' };
+        if (t === '@reboot') return { reboot: true };
+        if (m[t]) return parseCron(m[t]);
+        throw new Error('Unbekanntes @-Macro');
+      }
+      const parts = t.split(/\s+/);
+      if (parts.length !== 5) throw new Error('5 Felder erwartet');
+      return { sets: parts.map((p, i) => parseField(p, RANGES[i], i)) };
+    }
+
+    function describe(parts, sets) {
+      if (parts.reboot) return 'Beim Systemstart.';
+      const [min, hour, dom, mon, dow] = sets;
+      const star = i => /^\*$/.test(parts[i] || '');
+      let s = '';
+      if (star(0) && star(1)) s += 'Jede Minute';
+      else if (star(0)) s += `Jede Minute, ${listOrEvery('Stunde', hour, parts[1])}`;
+      else if (star(1)) s += `Um Minute ${[...min].join(',')} jeder Stunde`;
+      else s += `Um ${[...hour].map(h => String(h).padStart(2,'0')).join(',')}:${[...min].map(m => String(m).padStart(2,'0')).join(',')}`;
+      const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+      const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+      if (!star(2)) s += `, am ${[...dom].join('., ')}.`;
+      if (!star(3)) s += `, im ${[...mon].map(m => months[m-1]).join(', ')}`;
+      if (!star(4)) s += `, ${[...dow].map(d => days[d]).join(', ')}`;
+      return s + '.';
+    }
+    function listOrEvery(name, set, raw) {
+      if (raw === '*') return `jede ${name}`;
+      return `${name} ${[...set].join(',')}`;
+    }
+
+    function* nextRuns(sets, from = new Date(), max = 8) {
+      const [mins, hours, doms, mons, dows] = sets;
+      const d = new Date(from); d.setSeconds(0, 0); d.setMinutes(d.getMinutes() + 1);
+      let yielded = 0;
+      // brute-force step-by-minute up to ~2 years for safety
+      const limit = 60 * 24 * 366 * 2;
+      for (let i = 0; i < limit && yielded < max; i++) {
+        if (mins.has(d.getMinutes()) && hours.has(d.getHours()) && mons.has(d.getMonth()+1) && doms.has(d.getDate()) && dows.has(d.getDay())) {
+          yield new Date(d);
+          yielded++;
+        }
+        d.setMinutes(d.getMinutes() + 1);
+      }
+    }
+
+    function update() {
+      expr.value = fields.map(f => f.value.trim() || '*').join(' ');
+      render();
+    }
+    function render() {
+      const e = expr.value.trim();
+      try {
+        const parsed = parseCron(e);
+        $('err').textContent = '';
+        if (parsed.reboot) {
+          $('desc').textContent = 'Beim Systemstart.';
+          $('next').innerHTML = '<li>—</li>';
+          return;
+        }
+        $('desc').textContent = describe(e.split(/\s+/), parsed.sets);
+        const list = [];
+        for (const dt of nextRuns(parsed.sets)) list.push(dt);
+        $('next').innerHTML = list.length
+          ? list.map(d => `<li>${d.toLocaleString('de-DE',{weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</li>`).join('')
+          : '<li class="text-rose-400">Kein Treffer in absehbarer Zeit</li>';
+      } catch (err) {
+        $('err').textContent = err.message;
+        $('desc').textContent = '';
+        $('next').innerHTML = '';
+      }
+    }
+
+    fields.forEach(f => f.addEventListener('input', update));
+    expr.addEventListener('input', () => {
+      const parts = expr.value.trim().split(/\s+/);
+      if (parts.length === 5) parts.forEach((p, i) => fields[i].value = p);
+      render();
+    });
+    document.querySelectorAll('button[data-preset]').forEach(b => b.addEventListener('click', () => {
+      expr.value = b.dataset.preset;
+      const parts = expr.value.trim().split(/\s+/);
+      if (parts.length === 5) parts.forEach((p, i) => fields[i].value = p);
+      render();
+    }));
+    $('copy').onclick = () => Toolkit.copy(expr.value);
+    render();
+  </script>
+</body>
+</html>

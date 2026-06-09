@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Base64 Encoder / Decoder · Toolkit</title>
+  <meta name="description" content="Base64 für Text und Dateien — Encode und Decode direkt im Browser." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-5xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">Base64</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-4xl px-6 py-8 space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">Base64 Encoder &amp; Decoder</h1>
+      <p class="mt-1 text-sm text-zinc-400">Volle UTF-8-Unterstützung, optional URL-safe Variante. Auch Datei → Base64.</p>
+    </header>
+
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
+      <div class="flex items-center gap-3 text-sm">
+        <label class="inline-flex items-center gap-2"><input type="radio" name="dir" value="enc" checked class="text-emerald-500"> Text → Base64</label>
+        <label class="inline-flex items-center gap-2"><input type="radio" name="dir" value="dec" class="text-emerald-500"> Base64 → Text</label>
+        <span class="grow"></span>
+        <label class="inline-flex items-center gap-2 text-zinc-400"><input id="urlsafe" type="checkbox" class="rounded border-zinc-700 bg-zinc-950 text-emerald-500"> URL-safe</label>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-4">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs uppercase tracking-wider text-zinc-400">Eingabe</label>
+            <div class="flex gap-2">
+              <label class="text-xs rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1 cursor-pointer">
+                Datei laden<input id="file" type="file" class="hidden">
+              </label>
+            </div>
+          </div>
+          <textarea id="in" rows="14" class="w-full rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 px-3 py-2 text-sm font-mono"></textarea>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs uppercase tracking-wider text-zinc-400">Ausgabe</label>
+            <div class="flex gap-2">
+              <button id="copy" class="text-xs rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1">Kopieren</button>
+              <button id="dl" class="text-xs rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1">Download</button>
+            </div>
+          </div>
+          <textarea id="out" rows="14" readonly class="w-full rounded-md bg-zinc-950 border border-zinc-800 focus:ring-0 px-3 py-2 text-sm font-mono"></textarea>
+          <p id="err" class="mt-1 text-sm text-rose-400"></p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../app.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const inp = $('in'), out = $('out'), err = $('err'), urlSafe = $('urlsafe');
+    let mode = 'enc';
+    let lastBlob = null;
+
+    function toBase64(uint8) {
+      let bin = '';
+      for (let i = 0; i < uint8.length; i++) bin += String.fromCharCode(uint8[i]);
+      let b64 = btoa(bin);
+      if (urlSafe.checked) b64 = b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+      return b64;
+    }
+    function fromBase64(str) {
+      let s = str.replace(/\s+/g,'');
+      if (urlSafe.checked) s = s.replace(/-/g,'+').replace(/_/g,'/');
+      while (s.length % 4) s += '=';
+      const bin = atob(s);
+      const u = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      return u;
+    }
+
+    function compute() {
+      err.textContent = '';
+      try {
+        if (mode === 'enc') {
+          const u = new TextEncoder().encode(inp.value);
+          out.value = toBase64(u);
+          lastBlob = new Blob([u], { type: 'application/octet-stream' });
+        } else {
+          const u = fromBase64(inp.value);
+          // Try UTF-8 decode, otherwise show notice + offer download
+          try {
+            out.value = new TextDecoder('utf-8', { fatal: true }).decode(u);
+          } catch {
+            out.value = `[${u.length} Bytes Binärdaten — kein gültiger UTF-8-Text. Nutze "Download".]`;
+          }
+          lastBlob = new Blob([u], { type: 'application/octet-stream' });
+        }
+      } catch (e) {
+        err.textContent = e.message;
+        out.value = '';
+        lastBlob = null;
+      }
+    }
+
+    document.querySelectorAll('input[name=dir]').forEach(r => r.addEventListener('change', e => {
+      mode = e.target.value;
+      // swap inputs/outputs intuitively
+      const tmp = inp.value; inp.value = out.value; out.value = tmp;
+      compute();
+    }));
+    inp.addEventListener('input', compute);
+    urlSafe.addEventListener('change', compute);
+
+    $('file').addEventListener('change', async e => {
+      const f = e.target.files[0]; if (!f) return;
+      const buf = new Uint8Array(await f.arrayBuffer());
+      mode = 'enc';
+      document.querySelector('input[name=dir][value=enc]').checked = true;
+      inp.value = ''; // textarea can't represent binary safely
+      out.value = toBase64(buf);
+      lastBlob = new Blob([buf]);
+      Toolkit.toast(`${f.name} → Base64 (${buf.length} Bytes)`);
+    });
+
+    $('copy').onclick = () => Toolkit.copy(out.value);
+    $('dl').onclick = () => {
+      if (!lastBlob) return;
+      Toolkit.download(mode === 'enc' ? 'encoded.txt' : 'decoded.bin', lastBlob);
+    };
+
+    inp.value = 'Hallo Welt 🚀';
+    compute();
+  </script>
+</body>
+</html>

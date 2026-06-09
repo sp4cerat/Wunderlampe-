@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Toolkit · 15 schnelle Web-Tools</title>
+  <meta name="description" content="Eine Sammlung von 15 schnellen, ablenkungsfreien Web-Tools für Developer: JSON formatieren, Passwörter generieren, Crontab bauen, Markdown rendern, Bildkonvertierung, PDFs zusammenführen, Color Picker und mehr." />
+  <link rel="icon" type="image/svg+xml" href="public/favicon.svg" />
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: {
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace']
+      } } }
+    };
+  </script>
+  <link rel="stylesheet" href="public/styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+
+  <!-- Hero -->
+  <header class="relative overflow-hidden border-b border-zinc-900">
+    <div class="absolute inset-0 -z-10 opacity-60"
+         style="background:radial-gradient(circle at 20% 0%,rgba(16,185,129,0.15),transparent 45%),radial-gradient(circle at 80% 30%,rgba(99,102,241,0.12),transparent 50%);"></div>
+    <div class="mx-auto max-w-5xl px-6 py-16 sm:py-24">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="h-9 w-9 grid place-items-center rounded-lg bg-emerald-500/15 ring-1 ring-emerald-400/30 text-emerald-300">
+          <!-- bolt icon -->
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"/></svg>
+        </div>
+        <span class="text-sm font-medium text-zinc-400 tracking-wide">Toolkit</span>
+      </div>
+      <h1 class="text-4xl sm:text-5xl font-semibold tracking-tight text-zinc-50">
+        Schnelle Tools.<br/><span class="text-emerald-400">Keine Werbung. Keine Tracker.</span>
+      </h1>
+      <p class="mt-5 max-w-2xl text-lg text-zinc-400">
+        15 fokussierte Mini-Tools für den Developer-Alltag. Jedes Tool öffnet sofort, läuft direkt in deinem Browser
+        oder gegen einen kleinen lokalen Server — keine Anmeldung, keine versteckten Fees.
+      </p>
+      <div class="mt-7 flex flex-wrap gap-3 text-sm">
+        <a href="#tools" class="rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium px-4 py-2 transition">Alle Tools ansehen</a>
+        <a href="#about" class="rounded-md border border-zinc-800 hover:bg-zinc-900 px-4 py-2 transition">Wie es funktioniert</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tool grid -->
+  <main id="tools" class="mx-auto max-w-5xl px-6 py-12">
+    <div class="flex items-baseline justify-between mb-6">
+      <h2 class="text-xl font-semibold tracking-tight">Alle Tools</h2>
+      <input id="filter" type="search" placeholder="Filter…" class="rounded-md bg-zinc-900 border border-zinc-800 focus:border-emerald-400 focus:ring-0 text-sm px-3 py-1.5 w-48 placeholder:text-zinc-500" />
+    </div>
+
+    <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- cards rendered by JS so we get search/filter for free -->
+    </div>
+  </main>
+
+  <section id="about" class="border-t border-zinc-900 bg-zinc-950">
+    <div class="mx-auto max-w-5xl px-6 py-12 grid sm:grid-cols-3 gap-8 text-sm text-zinc-400">
+      <div>
+        <h3 class="text-zinc-100 font-medium mb-2">Wo läuft das?</h3>
+        <p>Alle Tools rechnen direkt in deinem Browser — Bild-Operationen via <code class="text-zinc-300">Canvas</code>, PDFs via <code class="text-zinc-300">pdf-lib</code>. Kein Backend nötig. Der URL-Shortener braucht einen Server und ist hier offline.</p>
+      </div>
+      <div>
+        <h3 class="text-zinc-100 font-medium mb-2">Privatsphäre</h3>
+        <p>Keine Telemetrie, keine Cookies, keine Uploads. Dateien werden ausschließlich lokal in deinem Browser verarbeitet.</p>
+      </div>
+      <div>
+        <h3 class="text-zinc-100 font-medium mb-2">Tech-Stack</h3>
+        <p>Statisches HTML/JS · Tailwind · Canvas · pdf-lib · marked + DOMPurify. Keine SPA, keine Bundles.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="border-t border-zinc-900">
+    <div class="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between text-xs text-zinc-500">
+      <span>Toolkit · 15 Mini-Tools</span>
+      <span class="font-mono">v1.0</span>
+    </div>
+  </footer>
+
+  <script src="public/tools-index.js"></script>
+</body>
+</html>

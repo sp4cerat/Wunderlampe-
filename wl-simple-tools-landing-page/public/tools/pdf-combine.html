@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDFs kombinieren · Toolkit</title>
+  <meta name="description" content="Mehrere PDFs in der gewählten Reihenfolge zusammenführen." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-3xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">PDFs kombinieren</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-3xl px-6 py-8 space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">PDFs zusammenführen</h1>
+      <p class="mt-1 text-sm text-zinc-400">PDFs in gewünschter Reihenfolge auswählen — verarbeitet mit <code>pdf-lib</code> direkt im Browser. Mindestens 2 Dateien.</p>
+    </header>
+
+    <form id="form" class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
+      <label id="drop" class="block cursor-pointer rounded-lg border-2 border-dashed border-zinc-800 hover:border-emerald-400/50 hover:bg-zinc-900 p-8 text-center transition">
+        <input id="file" type="file" accept="application/pdf" multiple class="hidden">
+        <p class="text-zinc-300"><span class="font-medium">PDFs hinzufügen</span> oder hier ablegen</p>
+        <p class="mt-1 text-xs text-zinc-500">Mindestens 2 Dateien</p>
+      </label>
+
+      <ul id="list" class="divide-y divide-zinc-800 rounded-md border border-zinc-800 bg-zinc-950"></ul>
+
+      <button id="go" class="w-full rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium px-4 py-2.5 disabled:opacity-50" disabled>Kombinieren &amp; downloaden</button>
+      <p id="err" class="text-sm text-rose-400"></p>
+    </form>
+  </main>
+
+  <script src="../app.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const drop = $('drop'), file = $('file'), list = $('list'), go = $('go');
+    let files = [];
+
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('border-emerald-400/50'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('border-emerald-400/50'));
+    drop.addEventListener('drop', e => {
+      e.preventDefault(); drop.classList.remove('border-emerald-400/50');
+      addFiles(e.dataTransfer.files);
+    });
+    file.addEventListener('change', e => addFiles(e.target.files));
+
+    function addFiles(filelist) {
+      for (const f of filelist) if (f.type === 'application/pdf') files.push(f);
+      file.value = '';
+      render();
+    }
+
+    function move(i, dir) {
+      const j = i + dir;
+      if (j < 0 || j >= files.length) return;
+      [files[i], files[j]] = [files[j], files[i]];
+      render();
+    }
+    function remove(i) { files.splice(i, 1); render(); }
+
+    function render() {
+      list.innerHTML = files.map((f, i) => `
+        <li class="flex items-center gap-2 px-3 py-2 text-sm">
+          <span class="text-zinc-500 w-6 text-right">${i+1}.</span>
+          <span class="grow truncate">${f.name}</span>
+          <span class="text-zinc-500">${(f.size/1024).toFixed(0)} kB</span>
+          <button type="button" data-act="up" data-i="${i}" class="rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1">↑</button>
+          <button type="button" data-act="dn" data-i="${i}" class="rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1">↓</button>
+          <button type="button" data-act="x"  data-i="${i}" class="rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1">×</button>
+        </li>`).join('') || '<li class="px-3 py-3 text-sm text-zinc-500">Noch keine PDFs ausgewählt.</li>';
+      go.disabled = files.length < 2;
+    }
+    list.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const i = +b.dataset.i;
+      if (b.dataset.act === 'up') move(i, -1);
+      if (b.dataset.act === 'dn') move(i, +1);
+      if (b.dataset.act === 'x')  remove(i);
+    });
+
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('err').textContent = '';
+      if (files.length < 2) return;
+      if (!window.PDFLib) { $('err').textContent = 'pdf-lib konnte nicht geladen werden (Netzwerk?).'; return; }
+      go.disabled = true; go.textContent = 'Kombiniere…';
+      try {
+        const { PDFDocument } = window.PDFLib;
+        const merged = await PDFDocument.create();
+        for (const f of files) {
+          const buf = await f.arrayBuffer();
+          const src = await PDFDocument.load(buf, { ignoreEncryption: true });
+          const pages = await merged.copyPages(src, src.getPageIndices());
+          pages.forEach(p => merged.addPage(p));
+        }
+        const bytes = await merged.save();
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        Toolkit.download('combined.pdf', blob);
+        Toolkit.toast('combined.pdf heruntergeladen');
+      } catch (err) {
+        $('err').textContent = err.message;
+      } finally {
+        go.disabled = files.length < 2; go.textContent = 'Kombinieren & downloaden';
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

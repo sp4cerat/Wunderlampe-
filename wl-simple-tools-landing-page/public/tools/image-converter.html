@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bild-Konverter · Toolkit</title>
+  <meta name="description" content="Bilder zwischen Formaten umwandeln — direkt im Browser via Canvas." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-3xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">Bild-Konverter</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-3xl px-6 py-8 space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">Bild-Konverter</h1>
+      <p class="mt-1 text-sm text-zinc-400">PNG · JPG · WebP — Verarbeitung im Browser via <code>Canvas</code>. Nichts verlässt dein Gerät.</p>
+    </header>
+
+    <form id="form" class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
+      <label id="drop" class="block cursor-pointer rounded-lg border-2 border-dashed border-zinc-800 hover:border-emerald-400/50 hover:bg-zinc-900 p-8 text-center transition">
+        <input id="file" type="file" accept="image/*" class="hidden" required>
+        <p class="text-zinc-300"><span class="font-medium">Datei wählen</span> oder hier ablegen</p>
+        <p id="meta" class="mt-1 text-xs text-zinc-500">Max 25 MB</p>
+      </label>
+
+      <div class="grid sm:grid-cols-2 gap-3 text-sm">
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-zinc-400">Zielformat</span>
+          <select id="format" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2">
+            <option value="png">PNG (verlustfrei)</option>
+            <option value="jpeg">JPEG</option>
+            <option value="webp" selected>WebP</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-zinc-400">Qualität (1–100)</span>
+          <input id="quality" type="number" min="1" max="100" value="85" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2" />
+        </label>
+      </div>
+
+      <button id="go" class="w-full rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium px-4 py-2.5">Konvertieren &amp; herunterladen</button>
+      <p id="err" class="text-sm text-rose-400"></p>
+      <p id="info" class="text-sm text-zinc-400"></p>
+    </form>
+  </main>
+
+  <script src="../app.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    const file = $('file'), drop = $('drop');
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('border-emerald-400/50'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('border-emerald-400/50'));
+    drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('border-emerald-400/50'); if (e.dataTransfer.files.length) { file.files = e.dataTransfer.files; updateMeta(); } });
+    file.addEventListener('change', updateMeta);
+    function updateMeta() {
+      const f = file.files[0];
+      $('meta').textContent = f ? `${f.name} · ${(f.size/1024).toFixed(1)} kB · ${f.type || 'unbekannt'}` : 'Max 25 MB';
+    }
+
+    function loadImage(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Bild konnte nicht gelesen werden.')); };
+        img.src = url;
+      });
+    }
+
+    function canvasToBlob(canvas, mime, quality) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('Encoding fehlgeschlagen — Format evtl. nicht unterstützt.')), mime, quality);
+      });
+    }
+
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('err').textContent = ''; $('info').textContent = '';
+      const f = file.files[0];
+      if (!f) return $('err').textContent = 'Bitte Datei wählen.';
+      $('go').disabled = true; $('go').textContent = 'Konvertiere…';
+      try {
+        const fmt = $('format').value;
+        const q = Math.max(1, Math.min(100, parseInt($('quality').value, 10) || 85)) / 100;
+        const img = await loadImage(f);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (fmt === 'jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+        ctx.drawImage(img, 0, 0);
+        const mime = 'image/' + fmt;
+        const blob = await canvasToBlob(canvas, mime, q);
+        const ext = fmt === 'jpeg' ? 'jpg' : fmt;
+        const name = f.name.replace(/\.[^.]+$/, '') + '.' + ext;
+        Toolkit.download(name, blob);
+        $('info').textContent = `${name} · ${(blob.size/1024).toFixed(1)} kB`;
+      } catch (err) {
+        $('err').textContent = err.message;
+      } finally {
+        $('go').disabled = false; $('go').textContent = 'Konvertieren & herunterladen';
+      }
+    });
+  </script>
+</body>
+</html>

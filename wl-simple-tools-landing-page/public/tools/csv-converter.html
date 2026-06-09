@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CSV → JSON / XML · Toolkit</title>
+  <meta name="description" content="CSV in JSON oder XML konvertieren — direkt im Browser." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-6xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">CSV Converter</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-6xl px-6 py-8 space-y-4">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">CSV → JSON / XML</h1>
+      <p class="mt-1 text-sm text-zinc-400">RFC-4180-konformer Parser. Auto-Erkennung des Trennzeichens, Header optional.</p>
+    </header>
+
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+      <div class="grid sm:grid-cols-4 gap-3 mb-4 text-sm">
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-zinc-400">Trennzeichen</span>
+          <select id="sep" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-2 py-1.5">
+            <option value="auto" selected>auto</option><option value=",">Komma</option><option value=";">Semikolon</option><option value="\t">Tab</option><option value="|">Pipe</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-zinc-400">Header-Zeile</span>
+          <select id="header" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-2 py-1.5">
+            <option value="yes" selected>Ja</option><option value="no">Nein</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-zinc-400">Zahlen parsen</span>
+          <select id="num" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-2 py-1.5">
+            <option value="yes" selected>Ja</option><option value="no">Nein (alles String)</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-zinc-400">XML-Wurzel</span>
+          <input id="root" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-2 py-1.5" value="rows" />
+        </label>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-4">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium text-zinc-300">CSV</h3>
+            <label class="text-xs rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1 cursor-pointer">
+              Datei laden<input id="file" type="file" accept=".csv,text/csv" class="hidden">
+            </label>
+          </div>
+          <textarea id="csv" rows="18" spellcheck="false" class="w-full rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 px-3 py-2 text-sm font-mono"></textarea>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <div class="inline-flex rounded-md border border-zinc-800 overflow-hidden text-sm">
+              <button data-out="json" class="outBtn px-3 py-1.5 bg-zinc-900">JSON</button>
+              <button data-out="xml" class="outBtn px-3 py-1.5">XML</button>
+            </div>
+            <div class="flex gap-2">
+              <button id="copy" class="text-xs rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1">Kopieren</button>
+              <button id="dl" class="text-xs rounded border border-zinc-800 hover:bg-zinc-800 px-2 py-1">Download</button>
+            </div>
+          </div>
+          <textarea id="out" rows="18" readonly class="w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 text-sm font-mono"></textarea>
+          <p id="err" class="mt-1 text-sm text-rose-400"></p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="../app.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    let outputFmt = 'json';
+
+    function detectSep(text) {
+      const sample = text.split('\n').slice(0, 5).join('\n');
+      const counts = { ',': 0, ';': 0, '\t': 0, '|': 0 };
+      for (const ch of sample) if (ch in counts) counts[ch]++;
+      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+    // RFC-4180-ish CSV parser with quoted fields and embedded newlines.
+    function parseCSV(text, sep) {
+      const rows = []; let row = [], field = '', inQ = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i], n = text[i+1];
+        if (inQ) {
+          if (c === '"' && n === '"') { field += '"'; i++; }
+          else if (c === '"') inQ = false;
+          else field += c;
+        } else {
+          if (c === '"') inQ = true;
+          else if (c === sep) { row.push(field); field = ''; }
+          else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+          else if (c === '\r') { /* skip */ }
+          else field += c;
+        }
+      }
+      if (field.length || row.length) { row.push(field); rows.push(row); }
+      return rows.filter(r => !(r.length === 1 && r[0] === ''));
+    }
+
+    function maybeNumber(s) {
+      if ($('num').value !== 'yes') return s;
+      if (s === '' || /\s/.test(s)) return s;
+      const n = Number(s);
+      return Number.isFinite(n) && /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s.trim()) ? n : s;
+    }
+
+    function escapeXml(s) {
+      return String(s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
+    }
+    function safeTag(s) {
+      let t = String(s).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      if (!/^[a-zA-Z_]/.test(t)) t = '_' + t;
+      return t || '_';
+    }
+
+    function toJson(rows, hasHeader) {
+      if (hasHeader) {
+        const [head, ...rest] = rows;
+        return JSON.stringify(rest.map(r => Object.fromEntries(head.map((h, i) => [h, maybeNumber(r[i] ?? '')]))), null, 2);
+      }
+      return JSON.stringify(rows.map(r => r.map(maybeNumber)), null, 2);
+    }
+    function toXml(rows, hasHeader) {
+      const root = safeTag($('root').value || 'rows');
+      const lines = [`<?xml version="1.0" encoding="UTF-8"?>`, `<${root}>`];
+      const head = hasHeader ? rows[0] : null;
+      const data = hasHeader ? rows.slice(1) : rows;
+      for (const r of data) {
+        lines.push('  <row>');
+        r.forEach((v, i) => {
+          const tag = head ? safeTag(head[i] || `c${i}`) : `c${i}`;
+          lines.push(`    <${tag}>${escapeXml(v)}</${tag}>`);
+        });
+        lines.push('  </row>');
+      }
+      lines.push(`</${root}>`);
+      return lines.join('\n');
+    }
+
+    function compute() {
+      $('err').textContent = '';
+      const text = $('csv').value;
+      if (!text.trim()) { $('out').value = ''; return; }
+      try {
+        let sep = $('sep').value;
+        if (sep === 'auto') sep = detectSep(text);
+        if (sep === '\\t') sep = '\t';
+        const rows = parseCSV(text, sep);
+        const hasHeader = $('header').value === 'yes';
+        $('out').value = outputFmt === 'json' ? toJson(rows, hasHeader) : toXml(rows, hasHeader);
+      } catch (e) {
+        $('err').textContent = e.message;
+        $('out').value = '';
+      }
+    }
+
+    document.querySelectorAll('.outBtn').forEach(b => b.onclick = () => {
+      outputFmt = b.dataset.out;
+      document.querySelectorAll('.outBtn').forEach(x => x.classList.remove('bg-zinc-900'));
+      b.classList.add('bg-zinc-900');
+      compute();
+    });
+    $('csv').addEventListener('input', compute);
+    ['sep','header','num','root'].forEach(id => $(id).addEventListener('input', compute));
+    $('file').addEventListener('change', async e => {
+      const f = e.target.files[0]; if (!f) return;
+      $('csv').value = await f.text();
+      compute();
+    });
+    $('copy').onclick = () => Toolkit.copy($('out').value);
+    $('dl').onclick = () => Toolkit.download(outputFmt === 'json' ? 'data.json' : 'data.xml', $('out').value, outputFmt === 'json' ? 'application/json' : 'application/xml');
+
+    $('csv').value = 'name,age,city\nAda,36,London\nLinus,54,"Helsinki, FI"\nGrace,85,New York';
+    compute();
+  </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unit Converter · Toolkit</title>
+  <meta name="description" content="Nischen-Einheiten umrechnen: Kochen, Computing, Astronomie, Nautik, Garn." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-5xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">Unit Converter</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-3xl px-6 py-8 space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">Unit Converter für Nischen</h1>
+      <p class="mt-1 text-sm text-zinc-400">Kochmaße, Speichergrößen (binär/dezimal), Astro-Distanzen, Nautik, Typografie.</p>
+    </header>
+
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
+      <label class="block">
+        <span class="text-xs uppercase tracking-wider text-zinc-400">Kategorie</span>
+        <select id="cat" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2"></select>
+      </label>
+
+      <div class="grid sm:grid-cols-[1fr_auto_1fr] items-end gap-3">
+        <div>
+          <label class="text-xs uppercase tracking-wider text-zinc-400">Wert</label>
+          <input id="val" type="number" step="any" value="1" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 px-3 py-2 text-lg font-mono" />
+          <select id="from" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-sm"></select>
+        </div>
+        <button id="swap" class="self-center rounded-md border border-zinc-800 hover:bg-zinc-800 p-2" title="Tauschen">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7h13l-3-3M21 17H8l3 3"/></svg>
+        </button>
+        <div>
+          <label class="text-xs uppercase tracking-wider text-zinc-400">Ergebnis</label>
+          <input id="out" readonly class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 text-lg font-mono" />
+          <select id="to" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-1.5 text-sm"></select>
+        </div>
+      </div>
+
+      <div id="all" class="grid sm:grid-cols-2 gap-2 text-sm font-mono"></div>
+    </div>
+  </main>
+
+  <script src="../app.js"></script>
+  <script>
+    // Unit definitions: each entry maps unit name → factor relative to a base unit.
+    // For temperature we use objects with toBase/fromBase.
+    const CATS = {
+      'Kochen (Volumen)': {
+        base: 'ml',
+        units: { 'ml': 1, 'l': 1000, 'TL (US)': 4.92892, 'EL (US)': 14.7868, 'Tasse (US)': 236.588, 'Tasse (metrisch)': 250, 'fl oz (US)': 29.5735, 'pint (US)': 473.176, 'gallon (US)': 3785.41 }
+      },
+      'Computing (binär)': {
+        base: 'B',
+        units: { 'B': 1, 'KiB': 1024, 'MiB': 1024**2, 'GiB': 1024**3, 'TiB': 1024**4, 'PiB': 1024**5 }
+      },
+      'Computing (dezimal)': {
+        base: 'B',
+        units: { 'B': 1, 'kB': 1e3, 'MB': 1e6, 'GB': 1e9, 'TB': 1e12, 'PB': 1e15 }
+      },
+      'Astronomie (Distanz)': {
+        base: 'm',
+        units: { 'm': 1, 'km': 1000, 'AE (au)': 1.495978707e11, 'Lichtjahr (ly)': 9.4607304725808e15, 'Parsec (pc)': 3.08567758149137e16, 'kpc': 3.08567758149137e19, 'Mpc': 3.08567758149137e22 }
+      },
+      'Nautik': {
+        base: 'm',
+        units: { 'Meter': 1, 'Fuß (ft)': 0.3048, 'Faden (fathom)': 1.8288, 'Kabel (cable, intl.)': 185.2, 'Seemeile (NM)': 1852, 'Knoten (kn)·h': 1852 }
+      },
+      'Typografie': {
+        base: 'mm',
+        units: { 'Pixel @96dpi': 0.2645833, 'Punkt (pt)': 0.3527778, 'Pica (pc)': 4.2333333, 'mm': 1, 'cm': 10, 'Zoll (in)': 25.4 }
+      },
+      'Garn-Lauflänge (m / 100g)': {
+        base: 'm/100g',
+        units: { 'm/100g': 1, 'NeL (Lace)': 700, 'Fingering (4-fach)': 400, 'Sport (5-fach)': 320, 'DK (8-fach)': 240, 'Worsted (10-fach)': 200, 'Bulky (12-fach)': 130, 'yd/50g (×2 = m/100g)': 1.8288 }
+      },
+      'Temperatur': {
+        base: 'K',
+        special: true,
+        units: {
+          'Celsius (°C)':  { toBase: c => c + 273.15, fromBase: k => k - 273.15 },
+          'Fahrenheit (°F)':{ toBase: f => (f - 32) * 5/9 + 273.15, fromBase: k => (k - 273.15) * 9/5 + 32 },
+          'Kelvin (K)':    { toBase: k => k, fromBase: k => k },
+          'Rankine (°R)':  { toBase: r => r * 5/9, fromBase: k => k * 9/5 }
+        }
+      }
+    };
+
+    const $ = id => document.getElementById(id);
+    const cat = $('cat'), from = $('from'), to = $('to'), val = $('val'), out = $('out');
+
+    Object.keys(CATS).forEach(name => cat.add(new Option(name, name)));
+    cat.addEventListener('change', loadCat);
+    [from, to, val].forEach(el => el.addEventListener('input', compute));
+    $('swap').onclick = () => { const t = from.value; from.value = to.value; to.value = t; compute(); };
+
+    function loadCat() {
+      const c = CATS[cat.value];
+      from.innerHTML = ''; to.innerHTML = '';
+      Object.keys(c.units).forEach(u => { from.add(new Option(u, u)); to.add(new Option(u, u)); });
+      // Sensible default: pick first as from, second as to (or first if only one).
+      const keys = Object.keys(c.units);
+      from.value = keys[0]; to.value = keys[1] || keys[0];
+      compute();
+    }
+
+    function convertScalar(v, c, fromU, toU) {
+      const f = c.units[fromU], t = c.units[toU];
+      if (c.special) return t.fromBase(f.toBase(v));
+      return v * f / t;
+    }
+
+    function fmt(n) {
+      if (!Number.isFinite(n)) return '–';
+      const a = Math.abs(n);
+      if (a !== 0 && (a < 1e-3 || a >= 1e9)) return n.toExponential(6);
+      return Number(n.toPrecision(10)).toString();
+    }
+
+    function compute() {
+      const c = CATS[cat.value];
+      const v = parseFloat(val.value);
+      if (!Number.isFinite(v)) { out.value = ''; $('all').innerHTML = ''; return; }
+      out.value = fmt(convertScalar(v, c, from.value, to.value));
+      $('all').innerHTML = Object.keys(c.units).map(u =>
+        `<div class="rounded-md bg-zinc-950 border border-zinc-800 px-3 py-1.5 flex items-center justify-between"><span class="text-zinc-400">${u}</span><span>${fmt(convertScalar(v, c, from.value, u))}</span></div>`
+      ).join('');
+    }
+
+    cat.value = Object.keys(CATS)[0];
+    loadCat();
+  </script>
+</body>
+</html>

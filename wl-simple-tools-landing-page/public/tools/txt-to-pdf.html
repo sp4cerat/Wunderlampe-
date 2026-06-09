@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Text/Markdown → PDF · Toolkit</title>
+  <meta name="description" content="Text oder Markdown in ein sauber gesetztes PDF rendern." />
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+  <nav class="border-b border-zinc-900">
+    <div class="mx-auto max-w-5xl px-6 py-3 flex items-center gap-3 text-sm">
+      <a href="../../index.html" class="flex items-center gap-2 text-zinc-300 hover:text-white">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7-7 7 7 7"/></svg>
+        Übersicht</a>
+      <span class="text-zinc-600">/</span><span class="text-zinc-400">Text → PDF</span>
+    </div>
+  </nav>
+
+  <main class="mx-auto max-w-5xl px-6 py-8 space-y-6">
+    <header>
+      <h1 class="text-2xl font-semibold tracking-tight">Text / Markdown → PDF</h1>
+      <p class="mt-1 text-sm text-zinc-400">Text wird auf A4-Seiten umbrochen. Markdown-Formatierung (Überschriften, Fettschrift, Kursiv, Inline-Code, Tabellen, Listen, Trennlinien, Links) wird im PDF gesetzt.</p>
+    </header>
+
+    <form id="form" class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
+      <div class="grid sm:grid-cols-2 gap-3 text-sm">
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-zinc-400">Modus</span>
+          <select id="mode" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2">
+            <option value="text" selected>Klartext</option>
+            <option value="markdown">Markdown</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-wider text-zinc-400">Titel (Dateiname &amp; PDF-Metadaten)</span>
+          <input id="title" type="text" value="document" class="mt-2 w-full rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2" />
+        </label>
+      </div>
+      <textarea id="text" rows="16" spellcheck="false" class="w-full rounded-md bg-zinc-950 border border-zinc-800 focus:border-emerald-400 focus:ring-0 px-3 py-2 text-sm font-mono"
+        placeholder="Schreibe hier Text oder Markdown…"></textarea>
+
+      <div class="flex flex-wrap gap-2">
+        <button id="go" class="rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-medium px-4 py-2">PDF erzeugen</button>
+        <label class="rounded-md border border-zinc-800 hover:bg-zinc-800 px-3 py-2 text-sm cursor-pointer">
+          Datei laden<input id="file" type="file" accept=".txt,.md,.markdown,text/*" class="hidden">
+        </label>
+        <span class="grow"></span>
+        <span id="info" class="text-sm text-zinc-400 self-center"></span>
+      </div>
+      <p id="err" class="text-sm text-rose-400"></p>
+    </form>
+  </main>
+
+  <script src="../app.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    $('text').value = `# Beispiel-Dokument
+
+Dies ist ein **Markdown**-Beispiel mit *kursivem* Text und Inline-\`code\`.
+
+## Liste mit Fettschrift
+
+- **erstens** ist das Wichtigste
+- **zweitens** kommt direkt danach
+- drittens ohne Fettschrift
+
+---
+
+## Tabelle
+
+| Spalte 1 | Spalte 2 | Status |
+|----------|----------|--------|
+| Wert A   | Wert B   | **ok** |
+| Foo      | Bar      | offen  |
+
+Ein [Link zur Doku](https://example.com) und ein nummerierter Block:
+
+1. **Schritt eins:** Konzept lesen
+2. **Schritt zwei:** PDF erzeugen
+3. fertig
+
+Wähle „Markdown" oder „Klartext" oben rechts. Klick „PDF erzeugen".`;
+
+    $('file').addEventListener('change', async e => {
+      const f = e.target.files[0]; if (!f) return;
+      $('text').value = await f.text();
+      const name = f.name.replace(/\.[^.]+$/, '');
+      $('title').value = name || 'document';
+      $('mode').value = /\.md$|\.markdown$/i.test(f.name) ? 'markdown' : 'text';
+    });
+
+    // Map common Unicode punctuation to WinAnsi-friendly equivalents (StandardFonts use WinAnsi).
+    const SMART = { '‘':"'", '’':"'", '‚':"'", '‛':"'",
+                    '“':'"', '”':'"', '„':'"', '‟':'"',
+                    '–':'-', '—':'-', '…':'...', ' ':' ' };
+    function sanitize(s) {
+      return s.replace(/[‘’‚‛“”„‟–—… ]/g, c => SMART[c])
+              // strip anything Helvetica/WinAnsi can't handle (emoji, CJK, etc.)
+              .replace(/[^\t\n\x20-\x7E\xA0-\xFF•€]/g, '?');
+    }
+
+    async function buildPdf(text, mode, title) {
+      const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+      const doc = await PDFDocument.create();
+      doc.setTitle(title || 'document');
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+      const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+      const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
+      const mono = await doc.embedFont(StandardFonts.Courier);
+      const fontMap = { regular: font, bold, italic, mono };
+
+      const pageW = 595.28, pageH = 841.89, margin = 56;
+      const usableW = pageW - 2 * margin;
+      let page = doc.addPage([pageW, pageH]);
+      let y = pageH - margin;
+
+      function newPage() { page = doc.addPage([pageW, pageH]); y = pageH - margin; }
+      function ensureRoom(needed) { if (y - needed < margin) newPage(); }
+
+      // Parse a markdown line into styled runs.
+      // Supports: **bold**, __bold__, *italic*, `code`, [text](url), ![alt](url).
+      function parseInline(line) {
+        line = line
+          .replace(/!\[([^\]]*?)\]\([^)]*?\)/g, '$1')
+          .replace(/\[([^\]]*?)\]\(([^)]*?)\)/g, '$1 ($2)');
+        const runs = [];
+        const re = /`([^`]+?)`|\*\*(.+?)\*\*|__(.+?)__|\*([^*\s][^*]*?[^*\s]|[^*\s])\*/g;
+        let lastIdx = 0, m;
+        while ((m = re.exec(line)) !== null) {
+          if (m.index > lastIdx) runs.push({ text: line.slice(lastIdx, m.index), style: 'regular' });
+          if (m[1] !== undefined) runs.push({ text: m[1], style: 'mono' });
+          else if (m[2] !== undefined) runs.push({ text: m[2], style: 'bold' });
+          else if (m[3] !== undefined) runs.push({ text: m[3], style: 'bold' });
+          else if (m[4] !== undefined) runs.push({ text: m[4], style: 'italic' });
+          lastIdx = re.lastIndex;
+        }
+        if (lastIdx < line.length) runs.push({ text: line.slice(lastIdx), style: 'regular' });
+        return runs.length ? runs : [{ text: '', style: 'regular' }];
+      }
+
+      // Wrap an array of styled runs into lines of styled tokens, respecting word boundaries.
+      function wrapRuns(runs, size, maxW) {
+        const tokens = [];
+        for (const r of runs) {
+          for (const p of r.text.split(/(\s+)/)) {
+            if (!p) continue;
+            tokens.push({ text: p, style: r.style, isSpace: /^\s+$/.test(p) });
+          }
+        }
+        if (tokens.length === 0) return [[]];
+        const lines = [];
+        let line = [], lineW = 0;
+        for (const tok of tokens) {
+          const tw = fontMap[tok.style].widthOfTextAtSize(tok.text, size);
+          if (tok.isSpace) {
+            if (line.length === 0) continue;
+            line.push(tok); lineW += tw; continue;
+          }
+          if (lineW + tw > maxW && line.length > 0) {
+            while (line.length && line[line.length-1].isSpace) {
+              lineW -= fontMap[line[line.length-1].style].widthOfTextAtSize(line[line.length-1].text, size);
+              line.pop();
+            }
+            lines.push(line); line = []; lineW = 0;
+          }
+          line.push(tok); lineW += tw;
+        }
+        if (line.length) {
+          while (line.length && line[line.length-1].isSpace) line.pop();
+          lines.push(line);
+        }
+        return lines.length ? lines : [[]];
+      }
+
+      function drawRuns(runs, size, indent = 0) {
+        const lines = wrapRuns(runs, size, usableW - indent);
+        const lh = size * 1.35;
+        for (const ln of lines) {
+          ensureRoom(lh);
+          y -= size;
+          let x = margin + indent;
+          for (const tok of ln) {
+            const f = fontMap[tok.style];
+            page.drawText(tok.text, { x, y, size, font: f });
+            x += f.widthOfTextAtSize(tok.text, size);
+          }
+          y -= (lh - size);
+        }
+      }
+
+      // Returns array of trimmed cells or null. A row contains at least one '|'.
+      function tryParseTableRow(line) {
+        if (!line || line.indexOf('|') === -1) return null;
+        const parts = line.split('|');
+        if (parts.length && parts[0].trim() === '') parts.shift();
+        if (parts.length && parts[parts.length-1].trim() === '') parts.pop();
+        if (parts.length === 0) return null;
+        return parts.map(p => p.trim());
+      }
+      function tryParseTableSep(line) {
+        const cells = tryParseTableRow(line);
+        if (!cells) return null;
+        for (const c of cells) if (!/^:?-+:?$/.test(c)) return null;
+        return cells;
+      }
+
+      function drawTable(header, rows) {
+        const ncols = header.length;
+        const colW = usableW / ncols;
+        const cellPad = 4;
+        const size = 10;
+        const lh = size * 1.35;
+        function renderRow(cells, isHeader) {
+          const padded = cells.slice(0, ncols);
+          while (padded.length < ncols) padded.push('');
+          const cellLines = padded.map(c => {
+            let runs = parseInline(c);
+            if (isHeader) runs = runs.map(r => ({ ...r, style: 'bold' }));
+            return wrapRuns(runs, size, colW - 2 * cellPad);
+          });
+          const maxLines = Math.max(...cellLines.map(l => l.length || 1));
+          const rowH = maxLines * lh + 2 * cellPad;
+          if (y - rowH < margin) newPage();
+          const topY = y;
+          for (let c = 0; c < ncols; c++) {
+            const cx = margin + c * colW;
+            page.drawRectangle({
+              x: cx, y: topY - rowH, width: colW, height: rowH,
+              borderColor: rgb(0.55, 0.55, 0.6), borderWidth: 0.5,
+            });
+            let cellY = topY - cellPad;
+            for (const ln of cellLines[c]) {
+              cellY -= size;
+              let xx = cx + cellPad;
+              for (const tok of ln) {
+                const f = fontMap[tok.style];
+                page.drawText(tok.text, { x: xx, y: cellY, size, font: f });
+                xx += f.widthOfTextAtSize(tok.text, size);
+              }
+              cellY -= (lh - size);
+            }
+          }
+          y -= rowH;
+        }
+        y -= 4;
+        renderRow(header, true);
+        for (const row of rows) renderRow(row, false);
+        y -= 8;
+      }
+
+      const cleaned = sanitize(text);
+
+      if (mode === 'markdown') {
+        const lines = cleaned.split('\n');
+        let inCode = false;
+        let i = 0;
+        while (i < lines.length) {
+          const raw = lines[i];
+          if (/^```/.test(raw.trim())) { inCode = !inCode; y -= 4; i++; continue; }
+          if (inCode) { drawRuns([{ text: raw || ' ', style: 'mono' }], 10); i++; continue; }
+          // Table: header row + separator row
+          if (i + 1 < lines.length) {
+            const hdr = tryParseTableRow(raw);
+            const sep = tryParseTableSep(lines[i + 1]);
+            if (hdr && sep && hdr.length === sep.length && hdr.length >= 1) {
+              const bodyRows = [];
+              let j = i + 2;
+              while (j < lines.length) {
+                const r = tryParseTableRow(lines[j]);
+                if (!r) break;
+                bodyRows.push(r);
+                j++;
+              }
+              drawTable(hdr, bodyRows);
+              i = j; continue;
+            }
+          }
+          const h = raw.match(/^(#{1,6})\s+(.*)$/);
+          if (h) {
+            const level = Math.min(3, h[1].length);
+            const sizes = [20, 16, 13];
+            y -= 6;
+            const runs = parseInline(h[2]).map(r => ({ ...r, style: 'bold' }));
+            drawRuns(runs, sizes[level - 1]);
+            y -= 4;
+            i++; continue;
+          }
+          // Horizontal rule
+          if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(raw)) {
+            ensureRoom(10);
+            y -= 5;
+            page.drawLine({
+              start: { x: margin, y },
+              end: { x: pageW - margin, y },
+              thickness: 0.5,
+              color: rgb(0.55, 0.55, 0.6),
+            });
+            y -= 5;
+            i++; continue;
+          }
+          if (/^\s*$/.test(raw)) { y -= 8; i++; continue; }
+          const ul = raw.match(/^\s*[-*+]\s+(.*)$/);
+          if (ul) {
+            const runs = parseInline(ul[1]);
+            runs.unshift({ text: '• ', style: 'regular' });
+            drawRuns(runs, 11, 14);
+            i++; continue;
+          }
+          const ol = raw.match(/^\s*(\d+)\.\s+(.*)$/);
+          if (ol) {
+            const runs = parseInline(ol[2]);
+            runs.unshift({ text: ol[1] + '. ', style: 'regular' });
+            drawRuns(runs, 11, 14);
+            i++; continue;
+          }
+          drawRuns(parseInline(raw), 11);
+          i++;
+        }
+      } else {
+        for (const raw of cleaned.split('\n')) {
+          if (/^\s*$/.test(raw)) { y -= 8; continue; }
+          drawRuns([{ text: raw, style: 'regular' }], 11);
+        }
+      }
+      return doc.save();
+    }
+
+    $('form').addEventListener('submit', async e => {
+      e.preventDefault();
+      $('err').textContent = ''; $('info').textContent = '';
+      const text = $('text').value;
+      if (!text.trim()) return $('err').textContent = 'Kein Text.';
+      if (!window.PDFLib) return $('err').textContent = 'pdf-lib konnte nicht geladen werden (Netzwerk?).';
+      $('go').disabled = true; $('go').textContent = 'Erzeuge…';
+      try {
+        const bytes = await buildPdf(text, $('mode').value, $('title').value);
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const name = ($('title').value.replace(/[^\w.-]/g, '_') || 'document') + '.pdf';
+        Toolkit.download(name, blob);
+        $('info').textContent = `${name} · ${(blob.size/1024).toFixed(1)} kB`;
+      } catch (err) {
+        $('err').textContent = err.message;
+      } finally {
+        $('go').disabled = false; $('go').textContent = 'PDF erzeugen';
+      }
+    });
+  </script>
+</body>
+</html>
