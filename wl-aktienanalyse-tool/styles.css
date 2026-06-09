@@ -1,0 +1,986 @@
+/* Custom styles on top of Tailwind. Keep this minimal — Tailwind utilities
+   handle most of the visual work. */
+
+:root {
+  color-scheme: light dark;
+  /* Inline-Card-Gradients (siehe app.js) verwenden den unteren Stop als CSS-Variable,
+     damit getönte Cards (Warnung gelb, Info blau, Erfolg grün etc.) in beiden Modi
+     gut aussehen. Im Dunkelmodus: dunkles Grau-Blau. Im Hellmodus: Weiß. */
+  --card-tint-bg: rgba(22, 27, 36, 0.85);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --card-tint-bg: rgba(22, 27, 36, 0.85);
+}
+html[data-theme="light"] {
+  color-scheme: light;
+  --card-tint-bg: rgba(255, 255, 255, 0.96);
+}
+
+body {
+  font-feature-settings: "ss01", "cv11", "tnum" 0;
+}
+
+/* Mono for numeric data with tabular-nums for column alignment */
+.num,
+.font-mono {
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* Subtle dotted grid background */
+#bg-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(110, 231, 183, 0.05) 1px, transparent 0);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 70%);
+}
+
+body > * { position: relative; z-index: 1; }
+
+/* Tabs ------------------------------------------------------------------- */
+.tab-btn {
+  padding: 0.5rem 0.9rem;
+  font-size: 0.875rem;
+  color: #9aa3b6;
+  border-radius: 0.375rem 0.375rem 0 0;
+  white-space: nowrap;
+  transition: color 120ms, background-color 120ms, border-color 120ms;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab-btn:hover {
+  color: #d3d8e2;
+  background-color: rgba(38, 45, 61, 0.4);
+}
+.tab-btn.active {
+  color: #6ee7b7;
+  border-bottom-color: #6ee7b7;
+  background-color: rgba(110, 231, 183, 0.05);
+}
+
+/* Vertikales Layout (Issue 13) ------------------------------------------- */
+/* TOC-Links als horizontale Sticky-Navigation für Anchor-Sprünge */
+.toc-link {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.825rem;
+  color: #9aa3b6;
+  border-radius: 0.375rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 120ms, background-color 120ms;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.toc-link:hover {
+  color: #d3d8e2;
+  background-color: rgba(38, 45, 61, 0.5);
+}
+.toc-link.active {
+  color: #6ee7b7;
+  background-color: rgba(110, 231, 183, 0.08);
+  border-color: rgba(110, 231, 183, 0.25);
+}
+
+/* Sections im vertikalen Layout */
+.section-block {
+  scroll-margin-top: 130px; /* damit Anker-Sprung unter Header + Sticky-TOC landet */
+  margin-bottom: 2.5rem;
+}
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #d3d8e2;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(58, 66, 86, 0.5);
+  display: flex;
+  align-items: baseline;
+}
+
+/* Cards ------------------------------------------------------------------ */
+.card {
+  background: linear-gradient(180deg, rgba(15, 19, 26, 0.6) 0%, rgba(22, 27, 36, 0.85) 100%);
+  border: 1px solid rgba(38, 45, 61, 0.9);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+}
+.card h2,
+.card h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9aa3b6;
+  margin-bottom: 0.6rem;
+}
+.card-mini {
+  background-color: rgba(15, 19, 26, 0.5);
+  border: 1px solid rgba(38, 45, 61, 0.9);
+  border-radius: 0.75rem;
+  padding: 1rem 1.1rem;
+  text-align: left;
+  transition: border-color 140ms, transform 140ms, background-color 140ms;
+}
+.card-mini:hover {
+  border-color: #6ee7b7;
+  background-color: rgba(15, 19, 26, 0.8);
+}
+
+/* Hero search (Landing) ------------------------------------------------- */
+.hero-search {
+  font-size: clamp(1.25rem, 2.6vw, 1.75rem);
+  line-height: 1.2;
+  font-weight: 500;
+  padding: 1.1rem 1.5rem;
+  background: rgba(15, 19, 26, 0.7);
+  border: 1.5px solid rgba(58, 66, 86, 0.85);
+  border-radius: 1rem;
+  color: #f3f4f6;
+  outline: none;
+  transition: border-color 160ms, box-shadow 160ms, transform 160ms;
+  box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  letter-spacing: -0.01em;
+  caret-color: #6ee7b7;
+}
+.hero-search::placeholder {
+  color: #5a6378;
+  font-weight: 400;
+}
+.hero-search:focus {
+  border-color: #6ee7b7;
+  box-shadow:
+    0 0 0 4px rgba(110, 231, 183, 0.12),
+    0 16px 40px -16px rgba(110, 231, 183, 0.25);
+}
+.hero-search-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 1.1rem;
+  background: radial-gradient(ellipse at 50% 0%, rgba(110, 231, 183, 0.14), transparent 70%);
+  z-index: -1;
+  filter: blur(8px);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+#hero-suggestions .sug {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1.1rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(38, 45, 61, 0.5);
+  font-size: 1rem;
+}
+#hero-suggestions .sug:last-child { border-bottom: 0; }
+#hero-suggestions .sug:hover,
+#hero-suggestions .sug.focused {
+  background-color: rgba(110, 231, 183, 0.08);
+}
+#hero-suggestions .sug .sym {
+  font-family: var(--mono, 'JetBrains Mono'), monospace;
+  color: #6ee7b7;
+  min-width: 5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+#hero-suggestions .sug .nm {
+  flex: 1;
+  color: #d3d8e2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#hero-suggestions .sug .ex {
+  color: #5a6378;
+  font-size: 0.8rem;
+}
+
+/* Chart container: feste 3:2 Breite:Höhe — max-Breite zähmt die Gesamtgröße */
+.chart-3-2 {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 3 / 2;
+  margin: 0 auto;
+}
+.chart-3-2 > canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Suggestion list ------------------------------------------------------- */
+#suggestions .sug {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(38, 45, 61, 0.5);
+}
+#suggestions .sug:last-child { border-bottom: 0; }
+#suggestions .sug:hover,
+#suggestions .sug.focused {
+  background-color: rgba(110, 231, 183, 0.08);
+}
+#suggestions .sug .sym {
+  font-family: var(--mono, 'JetBrains Mono'), monospace;
+  color: #6ee7b7;
+  min-width: 4.5rem;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+#suggestions .sug .nm {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #d3d8e2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#suggestions .sug .ex {
+  color: #5a6378;
+  font-size: 0.75rem;
+}
+
+/* Scorecard rings ------------------------------------------------------- */
+.ring-wrap { position: relative; }
+.ring-wrap .ring-bg {
+  stroke: rgba(58, 66, 86, 0.5);
+  fill: none;
+}
+.ring-wrap .ring-fg {
+  fill: none;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dasharray 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Investment-Ampel ------------------------------------------------------ */
+.ampel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: 1px solid;
+}
+.ampel-gruen { color: #6ee7b7; background-color: rgba(110, 231, 183, 0.08); border-color: rgba(110, 231, 183, 0.3); }
+.ampel-gelb  { color: #fbbf24; background-color: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.3); }
+.ampel-orange{ color: #fb923c; background-color: rgba(251, 146, 60, 0.08); border-color: rgba(251, 146, 60, 0.3); }
+.ampel-rot   { color: #ef4444; background-color: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); }
+
+.ampel .dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background-color: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Strength chips -------------------------------------------------------- */
+.chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid;
+}
+.chip-strong     { color: #6ee7b7; border-color: rgba(110, 231, 183, 0.4); background: rgba(110, 231, 183, 0.06); }
+.chip-medium     { color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.06); }
+.chip-weak       { color: #fb923c; border-color: rgba(251, 146, 60, 0.4); background: rgba(251, 146, 60, 0.06); }
+.chip-very-strong{ color: #60a5fa; border-color: rgba(96, 165, 250, 0.4); background: rgba(96, 165, 250, 0.06); }
+
+/* Spinner --------------------------------------------------------------- */
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(110, 231, 183, 0.2);
+  border-top-color: #6ee7b7;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+  vertical-align: -3px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toast ----------------------------------------------------------------- */
+.toast {
+  background: rgba(22, 27, 36, 0.95);
+  border: 1px solid rgba(58, 66, 86, 0.9);
+  border-radius: 0.5rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.85rem;
+  color: #d3d8e2;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  max-width: 360px;
+  animation: slidein 200ms ease-out;
+}
+.toast.err { border-color: rgba(239, 68, 68, 0.5); color: #fca5a5; }
+.toast.ok { border-color: rgba(110, 231, 183, 0.5); }
+@keyframes slidein { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Table ----------------------------------------------------------------- */
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+table.data th {
+  text-align: left;
+  font-weight: 500;
+  color: #9aa3b6;
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid rgba(38, 45, 61, 0.9);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+table.data td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(38, 45, 61, 0.4);
+  color: #d3d8e2;
+}
+table.data tr:hover td { background-color: rgba(110, 231, 183, 0.025); }
+table.data td.num,
+table.data th.num { font-family: 'JetBrains Mono', monospace; text-align: right; font-feature-settings: "tnum" 1; }
+.pos { color: #6ee7b7; }
+.neg { color: #f87171; }
+
+/* Progressbar (slim) ---------------------------------------------------- */
+.bar {
+  height: 6px;
+  background-color: rgba(38, 45, 61, 0.7);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, #34d399, #60a5fa);
+  border-radius: 3px;
+  transition: width 500ms ease-out;
+}
+
+/* Estimate-Note (Tiefenanalyse) ----------------------------------------- */
+.estimate-note {
+  border-left: 3px solid rgba(251, 191, 36, 0.6);
+  background: rgba(251, 191, 36, 0.06);
+  padding: 0.6rem 0.85rem;
+  border-radius: 0 0.4rem 0.4rem 0;
+  font-size: 0.8rem;
+  color: #d3d8e2;
+  line-height: 1.5;
+}
+
+/* Skeleton --------------------------------------------------------------- */
+.skeleton {
+  display: inline-block;
+  background: linear-gradient(90deg, rgba(38, 45, 61, 0.4) 0%, rgba(58, 66, 86, 0.6) 50%, rgba(38, 45, 61, 0.4) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+  border-radius: 0.25rem;
+  height: 1em;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* =====================================================================
+   Issue 14: Bright Mode (Default)
+   Die App ist primär in Dark-Mode-Klassen geschrieben (bg-ink-900 etc.).
+   Hier überschreiben wir alle relevanten Farbflächen, wenn data-theme="light"
+   gesetzt ist. So bleibt die HTML-Struktur unverändert.
+   ===================================================================== */
+
+/* Body & globale Hintergründe */
+html[data-theme="light"] body {
+  background-color: #f8fafc !important;
+  color: #1e293b !important;
+}
+
+/* Subtiles Punktraster heller einstellen (Akzentpunkte) */
+html[data-theme="light"] #bg-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(96, 165, 250, 0.10) 1px, transparent 0);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 70%);
+}
+
+/* Tailwind-Utility-Overrides: bg-ink-* (deckend & mit Opacity-Schreibweisen) */
+html[data-theme="light"] .bg-ink-900,
+html[data-theme="light"] .bg-ink-900\/80,
+html[data-theme="light"] .bg-ink-900\/60 {
+  background-color: rgba(248, 250, 252, 0.95) !important;
+}
+html[data-theme="light"] .bg-ink-800,
+html[data-theme="light"] .bg-ink-800\/40,
+html[data-theme="light"] .bg-ink-800\/50,
+html[data-theme="light"] .bg-ink-800\/85 {
+  background-color: #ffffff !important;
+}
+/* Issue 16 (überarbeitet): bg-ink-800/30 wird für News-Theme-Karten,
+   Scorecard-Sub-Dimensionen (`details`-Accordions) und Moat-Faktoren genutzt
+   (verschachtelt in einer weißen Card). Vorherige Tönung (#f1f5f9 / Slate-100)
+   wirkte im Bright Mode immer noch zu dunkelgrau. Jetzt fast-weiß (Slate-50,
+   #f8fafc) mit etwas kräftigerem Rahmen, damit die Sub-Karten klar lesbar
+   bleiben, ohne grau zu wirken. */
+html[data-theme="light"] .bg-ink-800\/30 {
+  background-color: #f8fafc !important;
+}
+/* Sub-Karten (Scorecard-Accordion, News-Theme-Cards, Moat-Faktoren) im Bright
+   Mode: Border etwas kräftiger gegen weiße Parent-Card setzen, da #f8fafc
+   selbst sehr blass ist — sonst verschwinden die Karten optisch. */
+html[data-theme="light"] details.bg-ink-800\/30,
+html[data-theme="light"] .bg-ink-800\/30.border-ink-600,
+html[data-theme="light"] .bg-ink-800\/30 {
+  border-color: #cbd5e1 !important;
+}
+html[data-theme="light"] .bg-ink-700,
+html[data-theme="light"] .bg-ink-700\/70 {
+  background-color: #f1f5f9 !important;
+}
+html[data-theme="light"] .bg-ink-600,
+html[data-theme="light"] .bg-ink-600\/40,
+html[data-theme="light"] .bg-ink-600\/60,
+html[data-theme="light"] .bg-ink-600\/70 {
+  background-color: rgba(226, 232, 240, 0.7) !important;
+}
+html[data-theme="light"] .bg-ink-500 { background-color: #cbd5e1 !important; }
+
+/* Text-Farben (ink-* Skala) */
+html[data-theme="light"] .text-ink-100 { color: #0f172a !important; }
+html[data-theme="light"] .text-ink-200 { color: #334155 !important; }
+html[data-theme="light"] .text-ink-300 { color: #64748b !important; }
+html[data-theme="light"] .text-ink-400 { color: #94a3b8 !important; }
+html[data-theme="light"] .text-ink-500 { color: #cbd5e1 !important; }
+
+/* Borders */
+html[data-theme="light"] .border-ink-300 { border-color: #94a3b8 !important; }
+html[data-theme="light"] .border-ink-400 { border-color: #cbd5e1 !important; }
+html[data-theme="light"] .border-ink-500 { border-color: #cbd5e1 !important; }
+html[data-theme="light"] .border-ink-600,
+html[data-theme="light"] .border-ink-600\/60 { border-color: #e2e8f0 !important; }
+html[data-theme="light"] .border-ink-700 { border-color: #f1f5f9 !important; }
+
+/* Placeholder-Farbe für Hell */
+html[data-theme="light"] .placeholder-ink-300::placeholder { color: #94a3b8 !important; }
+
+/* From/To-Klassen für Gradients (Header, Hero-Section, Ticker-Header etc.) */
+html[data-theme="light"] .from-ink-800 { --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important; --tw-gradient-to: rgba(255,255,255,0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+html[data-theme="light"] .to-ink-700\/50 { --tw-gradient-to: rgba(241, 245, 249, 0.5) var(--tw-gradient-to-position) !important; }
+
+/* Header sticky-Hintergrund mit Backdrop-Blur */
+html[data-theme="light"] header.border-b {
+  background-color: rgba(248, 250, 252, 0.85) !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+/* Footer */
+html[data-theme="light"] footer.border-t { border-top-color: #e2e8f0 !important; }
+
+/* Cards aus styles.css (linear-gradient mit dunklen Tönen).
+   Hinweis: kein !important auf "background", damit inline-getönte Cards
+   (info-blau, warn-gelb, success-grün etc., siehe app.js) ihren Akzent
+   behalten. Die inline-Gradients nutzen `var(--card-tint-bg)` als unteren
+   Stop, der pro Theme wechselt. */
+html[data-theme="light"] .card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%);
+  border-color: #e2e8f0 !important;
+  color: #1e293b;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px -6px rgba(15, 23, 42, 0.06);
+}
+html[data-theme="light"] .card h2,
+html[data-theme="light"] .card h3 { color: #475569 !important; }
+
+html[data-theme="light"] .card-mini {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+html[data-theme="light"] .card-mini:hover {
+  background-color: #f8fafc !important;
+  border-color: #34d399 !important;
+}
+
+/* TOC-Links */
+html[data-theme="light"] .toc-link { color: #64748b; }
+html[data-theme="light"] .toc-link:hover { color: #0f172a; background-color: #e2e8f0; }
+html[data-theme="light"] .toc-link.active {
+  color: #0d9488;
+  background-color: rgba(20, 184, 166, 0.12);
+  border-color: rgba(20, 184, 166, 0.4);
+}
+
+/* Section-Titles */
+html[data-theme="light"] .section-title {
+  color: #0f172a;
+  border-bottom-color: #e2e8f0;
+}
+
+/* Hero-Suche */
+html[data-theme="light"] .hero-search {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 12px 32px -16px rgba(15, 23, 42, 0.15), inset 0 0 0 1px rgba(15, 23, 42, 0.02);
+  caret-color: #0d9488;
+}
+html[data-theme="light"] .hero-search::placeholder { color: #94a3b8; }
+html[data-theme="light"] .hero-search:focus {
+  border-color: #14b8a6;
+  box-shadow:
+    0 0 0 4px rgba(20, 184, 166, 0.18),
+    0 16px 40px -16px rgba(20, 184, 166, 0.25);
+}
+
+/* Suggestion-Dropdowns (Hero & Header) */
+html[data-theme="light"] #suggestions,
+html[data-theme="light"] #hero-suggestions {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+}
+html[data-theme="light"] #suggestions .sug,
+html[data-theme="light"] #hero-suggestions .sug { border-bottom-color: #f1f5f9; }
+html[data-theme="light"] #suggestions .sug:hover,
+html[data-theme="light"] #suggestions .sug.focused,
+html[data-theme="light"] #hero-suggestions .sug:hover,
+html[data-theme="light"] #hero-suggestions .sug.focused {
+  background-color: rgba(20, 184, 166, 0.08);
+}
+html[data-theme="light"] #suggestions .sug .sym,
+html[data-theme="light"] #hero-suggestions .sug .sym { color: #0d9488; }
+html[data-theme="light"] #suggestions .sug .nm,
+html[data-theme="light"] #hero-suggestions .sug .nm { color: #0f172a; }
+html[data-theme="light"] #suggestions .sug .ex,
+html[data-theme="light"] #hero-suggestions .sug .ex { color: #94a3b8; }
+
+/* Accent-Texte etwas dunkler im Hellmodus für Lesbarkeit */
+html[data-theme="light"] .text-accent { color: #0d9488 !important; }
+html[data-theme="light"] .text-accent-dim { color: #059669 !important; }
+html[data-theme="light"] .text-accent-info { color: #2563eb !important; }
+html[data-theme="light"] .text-accent-warm { color: #b45309 !important; }
+html[data-theme="light"] .text-accent-bad { color: #b91c1c !important; }
+html[data-theme="light"] .text-pos { color: #047857 !important; }
+html[data-theme="light"] .text-neg { color: #b91c1c !important; }
+html[data-theme="light"] .pos { color: #047857 !important; }
+html[data-theme="light"] .neg { color: #b91c1c !important; }
+
+/* Border-Accent für Bullet- & Sektion-Akzente */
+html[data-theme="light"] .border-accent { border-color: #14b8a6 !important; }
+html[data-theme="light"] .border-accent\/30 { border-color: rgba(20,184,166,0.3) !important; }
+html[data-theme="light"] .border-accent-info\/40 { border-color: rgba(37,99,235,0.4) !important; }
+html[data-theme="light"] .border-accent-warm\/60 { border-color: rgba(180,83,9,0.5) !important; }
+
+/* Scorecard rings — backdrop heller */
+html[data-theme="light"] .ring-wrap .ring-bg { stroke: #e2e8f0; }
+
+/* Investment-Ampel — Hintergrund + Border etwas kräftiger gegen weiß */
+html[data-theme="light"] .ampel-gruen { color: #047857; background-color: rgba(110, 231, 183, 0.18); border-color: rgba(16, 185, 129, 0.45); }
+html[data-theme="light"] .ampel-gelb  { color: #b45309; background-color: rgba(251, 191, 36, 0.18); border-color: rgba(217, 119, 6, 0.45); }
+html[data-theme="light"] .ampel-orange{ color: #c2410c; background-color: rgba(251, 146, 60, 0.18); border-color: rgba(234, 88, 12, 0.45); }
+html[data-theme="light"] .ampel-rot   { color: #b91c1c; background-color: rgba(239, 68, 68, 0.15); border-color: rgba(220, 38, 38, 0.45); }
+
+/* Chips dunkler einfärben */
+html[data-theme="light"] .chip-strong      { color: #047857; border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.10); }
+html[data-theme="light"] .chip-medium      { color: #b45309; border-color: rgba(217, 119, 6, 0.45); background: rgba(217, 119, 6, 0.10); }
+html[data-theme="light"] .chip-weak        { color: #c2410c; border-color: rgba(234, 88, 12, 0.45); background: rgba(234, 88, 12, 0.10); }
+html[data-theme="light"] .chip-very-strong { color: #2563eb; border-color: rgba(37, 99, 235, 0.45); background: rgba(37, 99, 235, 0.10); }
+
+/* Toasts */
+html[data-theme="light"] .toast {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: #e2e8f0;
+  color: #1e293b;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+html[data-theme="light"] .toast.err { border-color: rgba(220, 38, 38, 0.4); color: #b91c1c; }
+html[data-theme="light"] .toast.ok  { border-color: rgba(16, 185, 129, 0.5); color: #047857; }
+
+/* Tabellen */
+html[data-theme="light"] table.data th {
+  color: #64748b;
+  border-bottom-color: #e2e8f0;
+}
+html[data-theme="light"] table.data td {
+  color: #1e293b;
+  border-bottom-color: #f1f5f9;
+}
+html[data-theme="light"] table.data tr:hover td { background-color: rgba(20, 184, 166, 0.05); }
+
+/* Progressbar (slim) */
+html[data-theme="light"] .bar {
+  background-color: #e2e8f0;
+}
+
+/* Estimate-Note (Tiefenanalyse) */
+html[data-theme="light"] .estimate-note {
+  border-left-color: rgba(217, 119, 6, 0.7);
+  background: rgba(251, 191, 36, 0.10);
+  color: #334155;
+}
+
+/* Skeleton-Hell */
+html[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, rgba(226, 232, 240, 0.5) 0%, rgba(203, 213, 225, 0.7) 50%, rgba(226, 232, 240, 0.5) 100%);
+  background-size: 200% 100%;
+}
+
+/* Spinner heller Akzent */
+html[data-theme="light"] .spinner {
+  border-color: rgba(20, 184, 166, 0.18);
+  border-top-color: #0d9488;
+}
+
+/* Tab-Buttons (legacy) im Hellmodus */
+html[data-theme="light"] .tab-btn { color: #64748b; }
+html[data-theme="light"] .tab-btn:hover { color: #0f172a; background-color: #e2e8f0; }
+html[data-theme="light"] .tab-btn.active {
+  color: #0d9488;
+  border-bottom-color: #0d9488;
+  background-color: rgba(20, 184, 166, 0.07);
+}
+
+/* Hero-Search Hintergrund-Glow im Hellmodus zurücknehmen */
+html[data-theme="light"] .hero-search-wrap::before {
+  background: radial-gradient(ellipse at 50% 0%, rgba(20, 184, 166, 0.16), transparent 70%);
+  opacity: 0.6;
+}
+
+/* Theme-Toggle-Button selbst */
+#theme-toggle { cursor: pointer; }
+#theme-toggle:active { transform: scale(0.97); }
+html[data-theme="light"] #theme-toggle { color: #334155; border-color: #cbd5e1; }
+html[data-theme="light"] #theme-toggle:hover { color: #0f172a; border-color: #94a3b8; background-color: #ffffff; }
+
+/* =====================================================================
+   Issue 15: Bright-Mode-Kontrast nachschärfen
+   Symptome vor dem Fix:
+   - Scorecard-Ring-Zahlen waren in Hell unsichtbar (fill #d3d8e2 auf weiß).
+     → app.js: fill="currentColor", hier setzen wir die Farbe je Theme.
+   - Karten mit Inline-Tint (Prognose-Snapshot, Fear & Greed, etc.) hatten
+     5%-Hintergrund-Stops, die auf hellem Card-Background fast verschwinden.
+   - Pos/Neg/Accent-Info-Tönungen mit /5 oder /10 Opacity wirkten in Hell
+     ausgewaschen — Text war noch lesbar, aber die Karten-Zugehörigkeit
+     (Bull/Base/Bear, Chancen/Risiken) verlor an Wirkung.
+   - Body-Hintergrund #f8fafc + tonalen Cards #fff war zu kontrastarm —
+     leichter blau-grauer Body lässt weiße Karten klarer abheben.
+   ===================================================================== */
+
+/* Scorecard-Ring: Score-Zahl in lesbarem Kontrast je Theme */
+.ring-wrap .ring-score-text { color: #d3d8e2; }
+html[data-theme="light"] .ring-wrap .ring-score-text { color: #0f172a; }
+
+/* Body-Hintergrund leicht abgedunkelt (warmes Slate), damit weiße Cards
+   sich sichtbar abheben und Tönungen mehr Kontrast haben. */
+html[data-theme="light"] body {
+  background-color: #eef2f7 !important;
+  color: #0f172a !important;
+}
+
+/* Card-Default-Hintergrund undurchsichtig-weiß mit kräftigerem Rahmen
+   (vorher konnte das transparente Bottom-Stop von Inline-Gradients durch
+   die Card-Hintergrund-Variable durchblitzen). */
+html[data-theme="light"] {
+  --card-tint-bg: #ffffff;
+}
+html[data-theme="light"] .card {
+  background: #ffffff;
+  border-color: #cbd5e1 !important;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 18px -10px rgba(15, 23, 42, 0.10);
+}
+html[data-theme="light"] .card h2,
+html[data-theme="light"] .card h3 { color: #334155 !important; }
+
+html[data-theme="light"] .card-mini {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  color: #0f172a;
+}
+html[data-theme="light"] .card-mini:hover {
+  background-color: #f8fafc !important;
+  border-color: #0d9488 !important;
+}
+
+/* Tabellen — Text dunkler, Zeilen-Trenner sichtbarer */
+html[data-theme="light"] table.data th {
+  color: #475569 !important;
+  border-bottom-color: #cbd5e1 !important;
+}
+html[data-theme="light"] table.data td {
+  color: #0f172a !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+html[data-theme="light"] table.data tr:hover td { background-color: rgba(20, 184, 166, 0.07); }
+
+/* Header-Sticky-Hintergrund noch kontrastreicher gegenüber Body */
+html[data-theme="light"] header.border-b {
+  background-color: rgba(238, 242, 247, 0.92) !important;
+  border-bottom-color: #cbd5e1 !important;
+}
+html[data-theme="light"] header .text-ink-100 { color: #0f172a !important; }
+
+/* Section-Titel kräftiger, Trennlinie dunkler */
+html[data-theme="light"] .section-title {
+  color: #0f172a !important;
+  border-bottom-color: #cbd5e1 !important;
+}
+
+/* Bull/Base/Bear/Fairness-Boxen in der Prognose-Snapshot-Card */
+html[data-theme="light"] .bg-pos\/5 {
+  background-color: rgba(16, 185, 129, 0.10) !important;
+}
+html[data-theme="light"] .bg-neg\/5 {
+  background-color: rgba(239, 68, 68, 0.09) !important;
+}
+html[data-theme="light"] .bg-accent-info\/5 {
+  background-color: rgba(37, 99, 235, 0.08) !important;
+}
+html[data-theme="light"] .bg-accent-info\/10 {
+  background-color: rgba(37, 99, 235, 0.12) !important;
+}
+html[data-theme="light"] .bg-accent\/5,
+html[data-theme="light"] .bg-accent\/10 {
+  background-color: rgba(13, 148, 136, 0.10) !important;
+}
+
+/* Border-pos/neg/accent-info Pendants */
+html[data-theme="light"] .border-pos\/30 { border-color: rgba(16, 185, 129, 0.55) !important; }
+html[data-theme="light"] .border-neg\/30 { border-color: rgba(220, 38, 38, 0.55) !important; }
+html[data-theme="light"] .border-accent-info\/40 { border-color: rgba(37, 99, 235, 0.55) !important; }
+
+/* Score-Color-Klassen: text-pos/text-neg/text-accent-info bleiben kräftig;
+   .bg-neg / .bg-pos (volle Marker-Punkte) ebenfalls sichtbar lassen */
+html[data-theme="light"] .bg-pos { background-color: #059669 !important; }
+html[data-theme="light"] .bg-neg { background-color: #dc2626 !important; }
+html[data-theme="light"] .bg-accent-info { background-color: #2563eb !important; }
+html[data-theme="light"] .bg-accent { background-color: #0d9488 !important; }
+
+/* Mini-Marker am Prognose-Slider haben border-ink-900 (sehr dunkel) — passt
+   für beide Themes. Leichten Schatten ergänzen für mehr Plastik in Hell. */
+html[data-theme="light"] .bg-accent.border-ink-900,
+html[data-theme="light"] .bg-pos.border-ink-900,
+html[data-theme="light"] .bg-neg.border-ink-900,
+html[data-theme="light"] .bg-accent-info.border-ink-900 {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+}
+
+/* Forecast-Failed-Card und ähnliche getönte Cards mit Inline-Border-rgba und
+   Inline-Background-Gradient (border-color rgba(239,68,68,0.4) etc.):
+   Inline-Styles haben Vorrang — wir verstärken nur die generischen
+   Text-Klassen so, dass sie auf hellem Untergrund klar bleiben. */
+html[data-theme="light"] .card .text-accent-bad,
+html[data-theme="light"] .card .text-accent-warm,
+html[data-theme="light"] .card .text-accent-info,
+html[data-theme="light"] .card .text-accent-dim,
+html[data-theme="light"] .card .text-pos,
+html[data-theme="light"] .card .text-neg {
+  font-weight: 500;
+}
+
+/* Estimate-Note auf hellem Hintergrund stärker tönen */
+html[data-theme="light"] .estimate-note {
+  border-left-color: #d97706 !important;
+  background: rgba(251, 191, 36, 0.16) !important;
+  color: #1e293b !important;
+}
+
+/* Progressbar leicht abgedunkelt für besseren Kontrast zur Card */
+html[data-theme="light"] .bar {
+  background-color: #cbd5e1 !important;
+}
+
+/* Toasts kräftiger umrandet */
+html[data-theme="light"] .toast {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15) !important;
+}
+
+/* Header-Such-Eingabe und Watchlist-Knopf */
+html[data-theme="light"] #search {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+html[data-theme="light"] #search::placeholder { color: #94a3b8 !important; }
+html[data-theme="light"] #open-watchlist {
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+html[data-theme="light"] #open-watchlist:hover {
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+}
+
+/* Ampel (Investment) — Schrift auf Hell etwas dunkler/dicker für Lesbarkeit */
+html[data-theme="light"] .ampel { font-weight: 700; }
+
+/* Skeleton-Hell stärker abgesetzt */
+html[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, rgba(203, 213, 225, 0.6) 0%, rgba(148, 163, 184, 0.7) 50%, rgba(203, 213, 225, 0.6) 100%) !important;
+  background-size: 200% 100%;
+}
+
+/* Subtiles Punktraster auf dem leicht abgedunkelten Body etwas dichter */
+html[data-theme="light"] #bg-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(37, 99, 235, 0.10) 1px, transparent 0) !important;
+}
+
+/* =====================================================================
+   Issue 16 (Build 18): Bright-Mode-Kontrast nachschärfen.
+   - Scorecard-Sub-Dimensionen (.details-Accordion mit bg-ink-800/30):
+     Hintergrund auf nahezu-weiß stellen, damit die nested Cards nicht
+     mehr dunkelgrau wirken.
+   - News-Cards (6-Monats-Themen, News-Listen, Filings-Listen): Hintergrund
+     und Trennlinien aufhellen, Text dunkler.
+   - news6m-card-Wrapper: weißer Background mit klarer Border.
+   ===================================================================== */
+
+/* Scorecard-Accordion (renderScoreBreakdownAccordion → details.bg-ink-800/30)
+   und News-Theme-Karten (renderNews6mBlock → div.bg-ink-800/30). */
+html[data-theme="light"] details.bg-ink-800\/30 > summary,
+html[data-theme="light"] details.bg-ink-800\/30 {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+html[data-theme="light"] details.bg-ink-800\/30 .text-ink-100 {
+  color: #0f172a !important;
+}
+html[data-theme="light"] details.bg-ink-800\/30 .text-ink-200 {
+  color: #1e293b !important;
+}
+html[data-theme="light"] details.bg-ink-800\/30 .text-ink-300 {
+  color: #475569 !important;
+}
+
+/* News-Karten (News-Tab) — vorher saß die Liste in einer card mit nichts
+   weiter, aber die linken Akzent-Border und die Schriftgrößen wirken auf
+   weißem Hintergrund grau, weil text-ink-300 helles Slate-500 ist. Hier
+   Schrift kräftiger, Border klarer. */
+html[data-theme="light"] .news6m-card {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+html[data-theme="light"] .news6m-card .text-ink-300 { color: #475569 !important; }
+html[data-theme="light"] .news6m-card .text-ink-400 { color: #64748b !important; }
+
+/* News-Listenelemente mit border-l-2 border-ink-500 — Border etwas kräftiger,
+   Text gut lesbar. */
+html[data-theme="light"] #tab-news .border-l-2.border-ink-500 {
+  border-left-color: #94a3b8 !important;
+}
+html[data-theme="light"] #tab-news .border-l-2.border-ink-500:hover {
+  border-left-color: #0d9488 !important;
+}
+html[data-theme="light"] #tab-news a .font-medium { color: #0f172a !important; }
+html[data-theme="light"] #tab-news a:hover .font-medium { color: #0d9488 !important; }
+html[data-theme="light"] #tab-news .text-ink-300 { color: #475569 !important; }
+html[data-theme="light"] #tab-news .text-ink-400 { color: #64748b !important; }
+
+/* Themes-Grid innerhalb von news6m-card (nested div.bg-ink-800/30) — diese
+   sind die "Top-Themen"-Kärtchen, die der User als dunkelgrau empfand.
+   Slate-50 mit klarem Rahmen statt #f1f5f9. */
+html[data-theme="light"] .news6m-card .bg-ink-800\/30,
+html[data-theme="light"] .news6m-card div.bg-ink-800\/30 {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* AI-Fallback-Banner / KI-Hinweis (Issue 18) — auf weiß lesbarer */
+html[data-theme="light"] .bg-accent-info\/5 {
+  background-color: rgba(37, 99, 235, 0.06) !important;
+}
+html[data-theme="light"] .border-accent-info\/40 {
+  border-color: rgba(37, 99, 235, 0.45) !important;
+}
+
+/* =====================================================================
+   Issue 19 (Build 19): Bright-Mode-Kontrast nachschärfen — der bisherige
+   #f8fafc-Hintergrund auf den Scorecard-Sub-Dimensionen und News-Karten
+   war dem User immer noch zu dunkelgrau. Wir schalten auf reinweiß (#fff)
+   mit kräftigerer Border um und ziehen die Regel auf alle bg-ink-800/30-
+   Container im hellen Modus, nicht nur die in news6m-card.
+   ===================================================================== */
+html[data-theme="light"] details.bg-ink-800\/30 > summary,
+html[data-theme="light"] details.bg-ink-800\/30 {
+  background-color: #ffffff !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+html[data-theme="light"] details.bg-ink-800\/30 .text-ink-100,
+html[data-theme="light"] details.bg-ink-800\/30 .text-ink-200 {
+  color: #0f172a !important;
+}
+html[data-theme="light"] details.bg-ink-800\/30 .text-ink-300 {
+  color: #334155 !important;
+}
+html[data-theme="light"] details.bg-ink-800\/30 .text-ink-400 {
+  color: #475569 !important;
+}
+
+/* Alle bg-ink-800/30-Boxen (nicht nur in news6m-card) — Quartalszahlen-Kalender,
+   Moat-Faktor-Cards, Momentum-Cards etc. — bekommen denselben hellen Hintergrund. */
+html[data-theme="light"] .bg-ink-800\/30 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+html[data-theme="light"] div.bg-ink-800\/30 .text-ink-100 { color: #0f172a !important; }
+html[data-theme="light"] div.bg-ink-800\/30 .text-ink-200 { color: #1e293b !important; }
+html[data-theme="light"] div.bg-ink-800\/30 .text-ink-300 { color: #475569 !important; }
+html[data-theme="light"] div.bg-ink-800\/30 .text-ink-400 { color: #64748b !important; }
+
+/* bg-ink-800/40 (Investment-Ampel-Box, Forecast-Snapshot-Kacheln) */
+html[data-theme="light"] .bg-ink-800\/40 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+html[data-theme="light"] .bg-ink-800\/40 .text-ink-100 { color: #0f172a !important; }
+html[data-theme="light"] .bg-ink-800\/40 .text-ink-200 { color: #1e293b !important; }
+html[data-theme="light"] .bg-ink-800\/40 .text-ink-300 { color: #475569 !important; }
+html[data-theme="light"] .bg-ink-800\/40 .text-ink-400 { color: #64748b !important; }
+
+/* News-Karten: noch weißer mit deutlicheren Schatten, damit sie sich vom
+   page-background absetzen */
+html[data-theme="light"] .news6m-card {
+  background: #ffffff !important;
+  border-color: #94a3b8 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+html[data-theme="light"] .news6m-card .bg-ink-800\/30,
+html[data-theme="light"] .news6m-card div.bg-ink-800\/30 {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Neue Issue-19-Risiko-Karten (financial_safety/investment_risk) — innere
+   details ohne bg-ink-800/30 — kriegen eigene Light-Mode-Behandlung. */
+html[data-theme="light"] .card details > summary {
+  color: #0f172a !important;
+}
+
+/* Scorecard-Ring-Container im Hellen leicht gerahmt für visuelle Trennung,
+   damit die kleinen Sub-Dimension-Ringe nicht im weißen Untergrund verschwimmen. */
+html[data-theme="light"] .ring-wrap {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(241, 245, 249, 0.55);
+}

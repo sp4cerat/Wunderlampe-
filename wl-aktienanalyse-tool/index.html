@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Aktienanalyse · Investment-Research-Copilot</title>
+
+  <!-- Issue 14: Theme aus localStorage VOR dem CSS-Laden setzen, damit
+       beim ersten Paint die richtige Farbe steht (kein FOUC).
+       Default: bright (light). -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('alphaScope.theme.v1');
+        var theme = saved === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <meta name="description" content="Strukturierte Aktienanalyse mit Scorecard, SEC-Filings, News-Sentiment und KI-Auswertung — kein Anlageberatungs-Tool, sondern Research-Werkzeug.">
+
+  <!-- Tailwind via CDN (Production-fähig genug für ein single-page Research-Tool) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter Variable"', 'Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'sans-serif'],
+            mono: ['"JetBrains Mono Variable"', 'JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+          colors: {
+            ink: {
+              900: '#0a0d12',
+              800: '#0f131a',
+              700: '#161b24',
+              600: '#1d2330',
+              500: '#262d3d',
+              400: '#3a4256',
+              300: '#5a6378',
+              200: '#9aa3b6',
+              100: '#d3d8e2',
+            },
+            accent: {
+              DEFAULT: '#6ee7b7',
+              dim: '#34d399',
+              warm: '#f59e0b',
+              bad: '#ef4444',
+              info: '#60a5fa',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Chart.js für die Kurs-Chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- Inter + JetBrains Mono via Fontsource-CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body class="min-h-screen bg-ink-900 text-ink-100 font-sans antialiased">
+  <div id="bg-grid" aria-hidden="true"></div>
+
+  <header class="border-b border-ink-600/60 sticky top-0 backdrop-blur-md bg-ink-900/80 z-30">
+    <div class="max-w-7xl mx-auto px-5 py-4 flex items-center gap-4">
+      <a href="./" class="flex items-center gap-2.5 shrink-0 group">
+        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-dim to-accent-info grid place-items-center text-ink-900 font-bold text-sm shadow-lg shadow-accent/10">α</span>
+        <span class="font-semibold tracking-tight text-ink-100 group-hover:text-accent transition">Alpha-Scope</span>
+        <span class="hidden sm:inline text-ink-300 text-sm">· Aktienanalyse</span>
+      </a>
+
+      <!-- Kompakte Header-Suche: erscheint, sobald eine Analyse geöffnet ist (siehe app.js) -->
+      <div id="header-search-wrap" class="flex-1 relative hidden">
+        <input
+          id="search"
+          type="search"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Firmenname oder Ticker eingeben…"
+          class="w-full bg-ink-700/70 border border-ink-500 focus:border-accent-info focus:ring-1 focus:ring-accent-info/40 rounded-lg px-4 py-2.5 text-sm placeholder-ink-300 outline-none transition" />
+        <div id="suggestions" class="absolute top-full mt-1 w-full bg-ink-700 border border-ink-500 rounded-lg shadow-2xl shadow-black/60 overflow-hidden hidden z-40"></div>
+      </div>
+      <div class="flex-1"></div>
+
+      <a href="#watchlist" id="open-watchlist" class="hidden md:inline text-sm text-ink-200 hover:text-ink-100 px-3 py-2 rounded-md border border-ink-500 hover:border-ink-400 transition">
+        <span class="text-accent">★</span> Watchlist <span id="watchlist-count" class="text-ink-300 ml-0.5">(0)</span>
+      </a>
+
+      <!-- Issue 14: Theme-Toggle (Bright/Dark Mode). Default ist Bright. -->
+      <button id="theme-toggle"
+              type="button"
+              class="text-sm text-ink-200 hover:text-ink-100 px-3 py-2 rounded-md border border-ink-500 hover:border-ink-400 transition flex items-center gap-1.5"
+              title="Zwischen hellem und dunklem Modus wechseln"
+              aria-label="Farbmodus umschalten">
+        <span id="theme-toggle-icon">☀️</span>
+        <span id="theme-toggle-label" class="hidden sm:inline">Hell</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-5 py-6">
+    <!-- Landing / Empty-State -->
+    <section id="landing" class="py-8 sm:py-12">
+      <div class="max-w-3xl mx-auto text-center">
+        <div class="inline-block px-3 py-1 text-xs text-accent border border-accent/30 rounded-full mb-6">Research, kein Trading-Signal</div>
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mb-3 leading-tight">
+          Aktie eingeben &rarr; <span class="text-transparent bg-clip-text bg-gradient-to-r from-accent-dim to-accent-info">Investment-Research in 30 Sek.</span>
+        </h1>
+        <p class="text-ink-300 text-sm sm:text-base mb-7 max-w-2xl mx-auto">
+          Strukturierte Auswertung von Kursdaten, SEC-Filings, News-Sentiment und Peer-Vergleich.
+          Jede KI-Aussage rückführbar auf Rohdaten.
+        </p>
+
+        <!-- Hero-Suchfeld: prominent oben mittig, große Schrift -->
+        <div class="hero-search-wrap relative max-w-2xl mx-auto mb-3">
+          <input
+            id="hero-search"
+            type="search"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Firmenname oder Ticker — z.B. Apple, AAPL, MSFT…"
+            class="hero-search w-full" />
+          <div id="hero-suggestions" class="absolute top-full mt-2 w-full bg-ink-700 border border-ink-500 rounded-xl shadow-2xl shadow-black/60 overflow-hidden hidden z-40 text-left"></div>
+        </div>
+        <div class="text-xs text-ink-300 mb-10">⌨ Eingabe + ↵ · Vorschläge erscheinen automatisch</div>
+
+        <div class="grid sm:grid-cols-3 gap-3 text-left">
+          <button class="example-pick card-mini" data-symbol="AAPL" data-name="Apple Inc.">
+            <span class="text-ink-300 text-xs uppercase tracking-wider">Beispiel</span>
+            <span class="block font-semibold mt-1">Apple Inc.</span>
+            <span class="text-ink-300 text-sm font-mono">AAPL · NASDAQ</span>
+          </button>
+          <button class="example-pick card-mini" data-symbol="MSFT" data-name="Microsoft Corporation">
+            <span class="text-ink-300 text-xs uppercase tracking-wider">Beispiel</span>
+            <span class="block font-semibold mt-1">Microsoft</span>
+            <span class="text-ink-300 text-sm font-mono">MSFT · NASDAQ</span>
+          </button>
+          <button class="example-pick card-mini" data-symbol="NVDA" data-name="NVIDIA Corporation">
+            <span class="text-ink-300 text-xs uppercase tracking-wider">Beispiel</span>
+            <span class="block font-semibold mt-1">NVIDIA</span>
+            <span class="text-ink-300 text-sm font-mono">NVDA · NASDAQ</span>
+          </button>
+        </div>
+
+        <div class="mt-12 grid sm:grid-cols-4 gap-3 text-left text-sm">
+          <div class="rounded-lg border border-ink-600 bg-ink-800/40 p-4">
+            <div class="text-accent mb-1.5">①</div>
+            <div class="font-medium">Resolve</div>
+            <div class="text-ink-300 mt-1">Firmenname → Ticker → CIK</div>
+          </div>
+          <div class="rounded-lg border border-ink-600 bg-ink-800/40 p-4">
+            <div class="text-accent mb-1.5">②</div>
+            <div class="font-medium">Collect</div>
+            <div class="text-ink-300 mt-1">Kurse, SEC-Filings, News</div>
+          </div>
+          <div class="rounded-lg border border-ink-600 bg-ink-800/40 p-4">
+            <div class="text-accent mb-1.5">③</div>
+            <div class="font-medium">Score</div>
+            <div class="text-ink-300 mt-1">Regelbasiert + KI-Kommentar</div>
+          </div>
+          <div class="rounded-lg border border-ink-600 bg-ink-800/40 p-4">
+            <div class="text-accent mb-1.5">④</div>
+            <div class="font-medium">Report</div>
+            <div class="text-ink-300 mt-1">Bull/Base/Bear-Szenarien</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Analyse-Vorlage (versteckt bis aktiv) — Issue 13: vertikales Layout, keine Tabs -->
+    <section id="analysis" class="hidden">
+      <!-- Header -->
+      <div id="ticker-header" class="rounded-xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-700/50 p-6 mb-6"></div>
+
+      <!-- Sticky Section-Navigation (statt Tabs): scrollt zur jeweiligen Section -->
+      <nav id="section-toc" class="sticky top-[68px] z-20 bg-ink-900/80 backdrop-blur-md border-b border-ink-600 -mx-5 px-5 mb-4">
+        <div class="flex gap-1 overflow-x-auto py-2">
+          <a data-tab="uebersicht" class="toc-link active" href="#sec-uebersicht">Übersicht</a>
+          <a data-tab="entscheidung" class="toc-link" href="#sec-entscheidung">Entscheidung</a>
+          <a data-tab="fundamental" class="toc-link" href="#sec-fundamental">Fundamentaldaten</a>
+          <a data-tab="bewertung" class="toc-link" href="#sec-bewertung">Bewertung</a>
+          <a data-tab="momentum" class="toc-link" href="#sec-momentum">Momentum &amp; Alpha</a>
+          <a data-tab="technical" class="toc-link" href="#sec-technical">Technische Analyse</a>
+          <a data-tab="peers" class="toc-link" href="#sec-peers">Peers</a>
+          <a data-tab="erwartung" class="toc-link" href="#sec-erwartung">Markterwartung</a>
+          <a data-tab="prognose" class="toc-link" href="#sec-prognose">Prognose</a>
+          <a data-tab="news" class="toc-link" href="#sec-news">News &amp; Sentiment</a>
+          <a data-tab="branche" class="toc-link" href="#sec-branche">Branche</a>
+          <a data-tab="sec" class="toc-link" href="#sec-sec">SEC-Filings</a>
+          <a data-tab="risiken" class="toc-link" href="#sec-risiken">Risiken</a>
+          <a data-tab="ki" class="toc-link" href="#sec-ki">KI-Report</a>
+          <a data-tab="tiefen" class="toc-link" href="#sec-tiefen">KI-Tiefenanalyse</a>
+          <a data-tab="fazit" class="toc-link" href="#sec-fazit">Fazit &amp; PDF</a>
+        </div>
+      </nav>
+
+      <!-- Vertikales Section-Stacking (Issue 13) -->
+      <section id="sec-uebersicht" class="section-block">
+        <h2 class="section-title">Übersicht</h2>
+        <div id="tab-uebersicht" class="tab-panel"></div>
+      </section>
+      <section id="sec-entscheidung" class="section-block">
+        <h2 class="section-title">Entscheidungsmatrix</h2>
+        <div id="tab-entscheidung" class="tab-panel"></div>
+      </section>
+      <section id="sec-fundamental" class="section-block">
+        <h2 class="section-title">Fundamentaldaten</h2>
+        <div id="tab-fundamental" class="tab-panel"></div>
+      </section>
+      <section id="sec-bewertung" class="section-block">
+        <h2 class="section-title">Bewertung &amp; Fairer Wert</h2>
+        <div id="tab-bewertung" class="tab-panel"></div>
+      </section>
+      <section id="sec-momentum" class="section-block">
+        <h2 class="section-title">Momentum &amp; Alpha</h2>
+        <div id="tab-momentum" class="tab-panel"></div>
+      </section>
+      <section id="sec-technical" class="section-block">
+        <h2 class="section-title">Technische Analyse <span class="text-ink-300 text-xs font-normal ml-2">(Issue 13)</span></h2>
+        <div id="tab-technical" class="tab-panel"></div>
+      </section>
+      <section id="sec-peers" class="section-block">
+        <h2 class="section-title">Peer-Vergleich</h2>
+        <div id="tab-peers" class="tab-panel"></div>
+      </section>
+      <section id="sec-erwartung" class="section-block">
+        <h2 class="section-title">Markterwartung</h2>
+        <div id="tab-erwartung" class="tab-panel"></div>
+      </section>
+      <section id="sec-prognose" class="section-block">
+        <h2 class="section-title">KI-Prognose</h2>
+        <div id="tab-prognose" class="tab-panel"></div>
+      </section>
+      <section id="sec-news" class="section-block">
+        <h2 class="section-title">News &amp; Sentiment</h2>
+        <div id="tab-news" class="tab-panel"></div>
+      </section>
+      <section id="sec-branche" class="section-block">
+        <h2 class="section-title">Branche</h2>
+        <div id="tab-branche" class="tab-panel"></div>
+      </section>
+      <section id="sec-sec" class="section-block">
+        <h2 class="section-title">SEC-Filings</h2>
+        <div id="tab-sec" class="tab-panel"></div>
+      </section>
+      <section id="sec-risiken" class="section-block">
+        <h2 class="section-title">Risiken</h2>
+        <div id="tab-risiken" class="tab-panel"></div>
+      </section>
+      <section id="sec-ki" class="section-block">
+        <h2 class="section-title">KI-Report</h2>
+        <div id="tab-ki" class="tab-panel"></div>
+      </section>
+      <section id="sec-tiefen" class="section-block">
+        <h2 class="section-title">KI-Tiefenanalyse</h2>
+        <div id="tab-tiefen" class="tab-panel"></div>
+      </section>
+      <section id="sec-fazit" class="section-block">
+        <h2 class="section-title">Fazit &amp; PDF</h2>
+        <div id="tab-fazit" class="tab-panel"></div>
+      </section>
+    </section>
+
+    <!-- Watchlist -->
+    <section id="watchlist-panel" class="hidden mt-4"></section>
+  </main>
+
+  <footer class="border-t border-ink-600/60 mt-12">
+    <div class="max-w-7xl mx-auto px-5 py-6 text-xs text-ink-300 flex flex-wrap items-center gap-x-6 gap-y-2 justify-between">
+      <div>
+        <strong class="text-ink-200">Kein Anlageberatungs-Tool.</strong> Daten zu Informationszwecken — keine Kauf- oder Verkaufsempfehlung.
+        Quellen: yfinance, SEC EDGAR, DuckDuckGo, DeepSeek V4.
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="#" id="clear-cache" class="hover:text-ink-100 transition">Cache verwerfen</a>
+        <span class="text-ink-500">·</span>
+        <span>v0.1</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toasts -->
+  <div id="toasts" class="fixed bottom-5 right-5 flex flex-col gap-2 z-50"></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

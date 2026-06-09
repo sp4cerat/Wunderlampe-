@@ -1,0 +1,17 @@
+{
+  "name": "stock-research-copilot",
+  "version": "0.1.0",
+  "description": "Investment-Research-Copilot — Aktienanalyse mit Scorecard, SEC-Filings, News-Sentiment und KI-Auswertung",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "pdfkit": "^0.18.0"
+  }
+}
