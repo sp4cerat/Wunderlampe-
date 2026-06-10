@@ -1,0 +1,66 @@
+/* Wunderlampe News — minimaler Custom-CSS-Ergänzungen zu Tailwind */
+
+html { scroll-behavior: smooth; }
+
+/* Tab-Button (aktiv) — wird via JS via class .tab-active gesetzt */
+.tab-btn.tab-active {
+  background: rgba(245, 154, 34, 0.15);
+  color: #fdd58a;
+}
+
+/* Sanftes Aufpoppen für News-Karten */
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pop-in {
+  animation: pop-in 280ms ease-out both;
+}
+
+/* Mikrofon-Recording-Indikator */
+.mic-recording {
+  background: rgba(244, 63, 94, 0.2) !important;
+  border-color: rgba(244, 63, 94, 0.6) !important;
+  color: #fda4af;
+  animation: pulse-mic 1.2s ease-in-out infinite;
+}
+@keyframes pulse-mic {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(244, 63, 94, 0); }
+}
+
+/* Drag-Over-Style für Dropzone */
+#drop-zone.drag-over {
+  background: rgba(245, 154, 34, 0.08);
+  border-color: rgba(245, 154, 34, 0.6);
+}
+
+/* Toast einblenden */
+#toast.show {
+  display: block;
+  animation: pop-in 240ms ease-out both;
+}
+
+/* Kompakter Scrollbar im Progress-Log */
+#progress-log::-webkit-scrollbar { width: 6px; }
+#progress-log::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+
+/* Hauptlinks im News-Card-Body */
+.prose-news a {
+  color: #fdd58a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Stock-Chip Farben */
+.chip-up   { color: #4ade80; }
+.chip-down { color: #fb7185; }
+.chip-flat { color: #94a3b8; }
+
+/* Issue 5: persönliche Betroffenheit ("Für dich"-Box auf News-Cards) */
+.personal-impact {
+  background-image: linear-gradient(135deg, rgba(245,154,34,0.07), rgba(245,154,34,0.02));
+}

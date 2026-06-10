@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meine News — Personalisierte Übersicht</title>
+  <meta name="description" content="Tägliche, persönlich kuratierte Nachrichten-Übersicht aus RSS-Feeds, Websuche und Aktien-Updates." />
+  <meta name="theme-color" content="#0f172a" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind-Config: warme Akzente, "Wunderlampe"-Vibe
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            display: ['"Fraunces"', 'ui-serif', 'Georgia', 'serif'],
+          },
+          colors: {
+            ink: {
+              900: '#0b1020',
+              800: '#111733',
+              700: '#1a2142',
+              600: '#252c54',
+              500: '#3a4276',
+            },
+            ember: {
+              50:  '#fff8ec',
+              100: '#ffecc7',
+              200: '#fdd58a',
+              300: '#fbb84c',
+              400: '#f59a22',
+              500: '#e87c0f',
+              600: '#c75e08',
+              700: '#9c4509',
+              800: '#7d370f',
+              900: '#682f10',
+            },
+          },
+          boxShadow: {
+            glow: '0 10px 40px -10px rgba(245,154,34,.45), 0 4px 14px -4px rgba(245,154,34,.25)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E%E2%9C%A8%3C/text%3E%3C/svg%3E" />
+</head>
+<body class="min-h-screen bg-ink-900 text-slate-100 font-sans antialiased">
+  <!-- Decorative background -->
+  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div class="absolute -top-40 -left-40 w-[36rem] h-[36rem] bg-ember-500/20 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-40 -right-40 w-[40rem] h-[40rem] bg-indigo-600/20 rounded-full blur-3xl"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(255,255,255,.05),transparent_50%)]"></div>
+  </div>
+
+  <!-- HEADER (Issue 12: zweizeilig — oben Icon + Titel + Datum, unten Tab-Leiste) -->
+  <header class="border-b border-white/5 backdrop-blur sticky top-0 z-30 bg-ink-900/70">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 pt-3">
+      <div class="flex items-center gap-3 pb-2">
+        <div class="text-2xl select-none" aria-hidden="true">✨</div>
+        <h1 class="font-display text-xl sm:text-2xl font-bold leading-tight">Meine News</h1>
+        <span class="ml-auto text-xs sm:text-sm text-slate-400 text-right" id="header-date">—</span>
+      </div>
+      <nav class="flex items-center gap-1 text-sm border-t border-white/5 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-1.5 pb-1.5 overflow-x-auto">
+        <button data-tab="news" class="tab-btn px-3 py-1.5 rounded-md hover:bg-white/5 whitespace-nowrap">Übersicht</button>
+        <button data-tab="setup" class="tab-btn px-3 py-1.5 rounded-md hover:bg-white/5 whitespace-nowrap">Einrichten</button>
+        <button data-tab="portfolio" class="tab-btn px-3 py-1.5 rounded-md hover:bg-white/5 whitespace-nowrap">Portfolio</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+
+    <!-- ============ TAB: ÜBERSICHT ============ -->
+    <section data-pane="news" class="space-y-6">
+      <!-- Action bar -->
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6 shadow-lg">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 class="font-display text-2xl sm:text-3xl font-bold">Dein Briefing</h2>
+            <p class="text-sm text-slate-400 mt-1" id="briefing-meta">Klick auf „Zusammenfassen", um die neueste Übersicht zu erstellen.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btn-summarize" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ember-500 hover:bg-ember-400 text-ink-900 font-semibold shadow-glow transition">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.6L12 2zm7 10l.9 2.5L22.4 15l-2.5.9L19 18.4l-.9-2.5L15.6 15l2.5-.9L19 12zM5 14l.7 1.9L7.6 16.6l-1.9.7L5 19.2l-.7-1.9L2.4 16.6l1.9-.7L5 14z"/></svg>
+              Zusammenfassen
+            </button>
+            <button id="btn-stocks" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ink-700 hover:bg-ink-600 border border-white/10 text-slate-100 font-medium transition" title="Aktuelle Kurse prüfen und bei Schwellen-Überschreitung benachrichtigen">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M3 17l6-6 4 4 8-8v4h2V3h-8v2h4l-6 6-4-4-8 8 2 2z"/></svg>
+              Aktien prüfen
+            </button>
+          </div>
+        </div>
+
+        <!-- Status / progress -->
+        <div id="progress" class="hidden mt-5 rounded-xl bg-ink-700/60 border border-white/10 p-4">
+          <div class="flex items-center gap-3 text-sm">
+            <div class="w-4 h-4 rounded-full border-2 border-ember-400 border-t-transparent animate-spin"></div>
+            <span id="progress-text">Bereite alles vor…</span>
+          </div>
+          <ul id="progress-log" class="mt-3 text-xs text-slate-400 space-y-1 max-h-32 overflow-y-auto"></ul>
+        </div>
+      </div>
+
+      <!-- Briefing / Greeting card (Issue 10: Sonnen-Icon entfernt, damit Text die volle Breite hat) -->
+      <div id="greeting" class="hidden rounded-2xl border border-ember-500/30 bg-gradient-to-br from-ember-500/10 via-ember-500/5 to-transparent p-5 sm:p-6 shadow-lg">
+        <h3 class="font-display text-lg font-semibold text-ember-100">Heute für dich</h3>
+        <div id="greeting-text" class="text-slate-200 mt-2 leading-relaxed space-y-3"></div>
+
+        <!-- Issue 21: Text-to-Speech-Bar (Button + Player + Download) -->
+        <div id="tts-bar" class="mt-4 pt-4 border-t border-ember-500/20 flex flex-wrap items-center gap-2">
+          <button id="btn-tts-play" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-ember-500/20 hover:bg-ember-500/30 text-ember-100 border border-ember-500/40 text-sm font-medium transition">
+            <span>🔊</span><span>Anhören</span>
+          </button>
+          <button id="btn-tts-download" class="hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-ink-700 hover:bg-ink-600 text-slate-100 border border-white/10 text-sm font-medium transition">
+            <span>⬇</span><span>Herunterladen</span>
+          </button>
+          <span id="tts-status" class="text-xs text-slate-400"></span>
+          <audio id="tts-audio" controls preload="none" class="hidden w-full mt-2"></audio>
+        </div>
+      </div>
+
+      <!-- Issue 8: Wetter-Karte (oberhalb der Rubriken) -->
+      <div id="weather-card" class="hidden rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 via-sky-500/5 to-transparent p-5"></div>
+
+      <!-- Issue 8: dynamisch befüllter Rubriken-Container.
+           Ersetzt das alte Wichtig/Hintergrund/Events-Layout. -->
+      <div id="news-buckets" class="space-y-6"></div>
+
+      <!-- Empty state -->
+      <div id="empty-state" class="hidden text-center py-16">
+        <div class="text-5xl mb-4">🪔</div>
+        <h3 class="font-display text-xl text-slate-300 mb-2">Noch keine Übersicht</h3>
+        <p class="text-sm text-slate-500 max-w-md mx-auto">Trage unter <button data-tab-link="setup" class="text-ember-400 hover:text-ember-300 underline">Einrichten</button> deine Interessen und (optional) RSS-Feeds ein und klick dann auf „Zusammenfassen".</p>
+      </div>
+
+      <!-- Stock results -->
+      <section id="stock-results-wrap" class="hidden mt-8">
+        <header class="flex items-baseline justify-between mb-3">
+          <h3 class="font-display text-lg font-semibold text-slate-100 flex items-center gap-2">
+            <span class="text-emerald-400">📈</span> Aktien-Update
+          </h3>
+          <span id="stock-meta" class="text-xs text-slate-500"></span>
+        </header>
+        <div id="stock-results" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </section>
+    </section>
+
+    <!-- ============ TAB: EINRICHTEN ============ -->
+    <section data-pane="setup" class="space-y-6 hidden">
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">Deine Interessen</h2>
+        <p class="text-sm text-slate-400 mb-4">Schreib in eigenen Worten, was dich beschäftigt. Beispiele: Themen, Regionen, Branchen, Schwellenwerte für Aktien („bei 5% Änderung Bescheid sagen"), Stimmung („nur Positives"), Sprache. <span class="text-ember-300">Die KI baut daraus automatisch ein strukturiertes Profil</span> mit Standorten, Themen-Modulen, Watchlist und Negativ-Filtern.</p>
+        <div class="relative">
+          <textarea id="ta-interests" rows="8" class="w-full rounded-xl bg-ink-900 border border-white/10 px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ember-500/60 focus:border-ember-500/60 leading-relaxed" placeholder="z.B. Ich interessiere mich für KI und EU-Politik, lebe in Konstanz und mag lokale Events. Mein Aktien-Portfolio soll mich nur bei 5% Änderung benachrichtigen. Lieber positive Nachrichten zuerst."></textarea>
+          <button id="btn-mic" class="absolute bottom-3 right-3 p-2 rounded-lg bg-ink-700 hover:bg-ink-600 border border-white/10 transition" title="Spracheingabe (Web Speech API)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-3.08A7 7 0 0019 11h-2z"/></svg>
+          </button>
+        </div>
+        <div class="flex justify-between items-center mt-2 text-xs text-slate-500">
+          <span id="mic-status"></span>
+          <span><span id="interest-chars">0</span> Zeichen · automatisch gespeichert</span>
+        </div>
+      </div>
+
+      <!-- Issue 8: KI-generiertes Profil (automatisch aus dem Interessen-Text) -->
+      <div class="rounded-2xl border border-ember-500/30 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <div class="flex items-start justify-between gap-3 mb-1">
+          <h2 class="font-display text-2xl font-bold flex items-center gap-2">
+            <span class="text-ember-400">🧬</span> Dein Profil
+            <span class="text-xs font-normal text-slate-500 ml-1">(automatisch generiert)</span>
+          </h2>
+          <button id="btn-profile-regen" class="text-sm px-3 py-1.5 rounded-lg bg-ember-500/20 hover:bg-ember-500/30 text-ember-200 border border-ember-500/40 transition">
+            Profil neu generieren
+          </button>
+        </div>
+        <p id="profile-meta" class="text-xs text-slate-400 mb-4">Noch kein Profil — wird beim nächsten „Zusammenfassen" automatisch erzeugt.</p>
+        <div id="profile-box"></div>
+      </div>
+
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">RSS-Feeds</h2>
+        <p class="text-sm text-slate-400 mb-4">Eine URL pro Zeile. Zeilen, die mit <code class="text-ember-300">#</code> beginnen, werden ignoriert (gut für Kommentare).</p>
+        <textarea id="ta-feeds" rows="8" class="w-full rounded-xl bg-ink-900 border border-white/10 px-4 py-3 font-mono text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ember-500/60 focus:border-ember-500/60" placeholder="https://www.tagesschau.de/index~rss2.xml
+https://www.heise.de/rss/heise-atom.xml
+# https://example.org/feed.xml  (auskommentiert)"></textarea>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <button id="btn-test-feeds" class="text-sm px-3 py-1.5 rounded-lg bg-ink-700 hover:bg-ink-600 border border-white/10 transition">Feeds testen</button>
+          <button id="btn-load-suggested" class="text-sm px-3 py-1.5 rounded-lg bg-ink-700 hover:bg-ink-600 border border-white/10 transition">Beispiel-Feeds einfügen</button>
+          <span id="feeds-status" class="text-xs text-slate-500 self-center"></span>
+        </div>
+      </div>
+
+      <!-- Issue 10: YouTube-Kanäle als zusätzliche Quelle -->
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">YouTube-Kanäle</h2>
+        <p class="text-sm text-slate-400 mb-4">Eine Kanal-URL pro Zeile. Erlaubt: <code class="text-ember-300">youtube.com/@handle</code>, <code class="text-ember-300">youtube.com/channel/UC…</code>, <code class="text-ember-300">youtube.com/c/name</code> oder <code class="text-ember-300">youtube.com/user/name</code>. Pro Run wird je Kanal das neueste Video innerhalb des unten gewählten Zeitfensters geprüft, transkribiert und in die Rubriken einsortiert. Transkripte werden serverseitig <span class="text-ember-300">mehrere Tage</span> zwischengespeichert — derselbe Video-Run kostet so nur ein einmaliges Caption-Scrape.</p>
+        <textarea id="ta-youtube" rows="5" class="w-full rounded-xl bg-ink-900 border border-white/10 px-4 py-3 font-mono text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ember-500/60 focus:border-ember-500/60" placeholder="https://www.youtube.com/@kurzgesagt
+https://www.youtube.com/@tagesschau
+# https://www.youtube.com/channel/UCxxx  (auskommentiert)"></textarea>
+        <fieldset class="mt-4">
+          <legend class="text-sm text-slate-300 mb-2">Maximales Video-Alter</legend>
+          <div class="flex flex-wrap gap-3 text-sm">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="yt-max-age" value="1" class="accent-ember-500" />
+              <span class="text-slate-200">1 Tag</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="yt-max-age" value="3" class="accent-ember-500" checked />
+              <span class="text-slate-200">3 Tage</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="yt-max-age" value="5" class="accent-ember-500" />
+              <span class="text-slate-200">5 Tage</span>
+            </label>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Videos außerhalb dieses Fensters werden beim Zusammenfassen übersprungen.</p>
+        </fieldset>
+        <div class="flex flex-wrap gap-2 mt-3">
+          <button id="btn-test-youtube" class="text-sm px-3 py-1.5 rounded-lg bg-ink-700 hover:bg-ink-600 border border-white/10 transition">Kanäle testen</button>
+          <span id="youtube-status" class="text-xs text-slate-500 self-center"></span>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">Suche auf diesen Webseiten</h2>
+        <p class="text-sm text-slate-400 mb-4">Optional: eigene Quell-Seiten (Lieblings-Magazine, lokale Zeitungen, Event-Kalender). Eine URL pro Zeile — die URL wird <span class="text-ember-300">unverändert</span> übernommen. Diese Seiten werden zusätzlich zur DuckDuckGo-Suche per Playwright gecrawlt und per KI in lokale Nachrichten, Events, Wetter oder andere News klassifiziert.</p>
+        <textarea id="ta-search-sites" rows="5" class="w-full rounded-xl bg-ink-900 border border-white/10 px-4 py-3 font-mono text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ember-500/60 focus:border-ember-500/60" placeholder="https://www.suedkurier.de/region/konstanz/
+https://www.konstanz-info.com/events
+https://www.spiegel.de/
+# https://meine-lokalzeitung.de"></textarea>
+        <fieldset class="mt-4">
+          <legend class="text-sm text-slate-300 mb-2">DuckDuckGo-Modus</legend>
+          <div class="flex flex-col sm:flex-row gap-3 text-sm">
+            <label class="inline-flex items-start gap-2 cursor-pointer">
+              <input type="radio" name="sites-mode" value="additional" class="mt-1 accent-ember-500" checked />
+              <span><span class="text-slate-200">Zusätzlich</span><br/><span class="text-xs text-slate-500">Allgemeine DDG-Suche + extra DDG-Treffer mit <code>site:</code>-Filter (Hostname aus URL)</span></span>
+            </label>
+            <label class="inline-flex items-start gap-2 cursor-pointer">
+              <input type="radio" name="sites-mode" value="exclusive" class="mt-1 accent-ember-500" />
+              <span><span class="text-slate-200">Stattdessen</span><br/><span class="text-xs text-slate-500">DDG-Suche ausschließlich auf diesen Domains</span></span>
+            </label>
+          </div>
+        </fieldset>
+        <fieldset class="mt-4">
+          <legend class="text-sm text-slate-300 mb-2">Maximales Artikel-Alter</legend>
+          <div class="flex flex-wrap gap-3 text-sm">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="site-max-age" value="1" class="accent-ember-500" />
+              <span class="text-slate-200">1 Tag</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="site-max-age" value="3" class="accent-ember-500" checked />
+              <span class="text-slate-200">3 Tage</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="site-max-age" value="5" class="accent-ember-500" />
+              <span class="text-slate-200">5 Tage</span>
+            </label>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Gilt für RSS-Feeds, Web-Suche, die eigene Webseiten-Crawl-Pipeline und die PubMed-Studien-Suche (Medizin-Rubrik). Items außerhalb des Fensters werden bei Extraktion und Verarbeitung verworfen.</p>
+        </fieldset>
+      </div>
+
+      <!-- Issue 24/40: LLM-Backend-Umschalter -->
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">KI-Modell</h2>
+        <p class="text-sm text-slate-400 mb-4">Welches Sprachmodell soll für Profil-Generierung, Suchplanung, Scoring, Briefings, Event-/Lokal-Extraktion und den KI-Assistenten verwendet werden? Die Auswahl wirkt sofort auf alle nachfolgenden Anfragen. Pro Modell zeigt der „Testen"-Button, ob aimlapi das Modell aktuell ausliefert. Kostenangaben sind ca.-Werte pro 1&nbsp;Million Tokens (Input&nbsp;/&nbsp;Output) — Provider-Preise können sich ändern.</p>
+        <fieldset>
+          <legend class="sr-only">LLM-Backend</legend>
+          <!-- Issue 40: Liste der 5 Modelle, jede Zeile mit Radio, Label, Untertitel, Kosten-Chip und Test-Button. -->
+          <div id="llm-backend-list" class="flex flex-col gap-3 text-sm"></div>
+        </fieldset>
+        <p class="text-xs text-slate-500 mt-3" id="llm-backend-status"></p>
+        <p class="text-[11px] text-slate-600 mt-1">Issue 40: die automatische Modell-Umschaltung bei Fehlern ist deaktiviert. Wenn das gewählte Modell scheitert, wird das lokale Fallback-Briefing angezeigt.</p>
+
+        <!-- Issue 30/43: Länge der täglichen Zusammenfassung — 1× bis 5× -->
+        <fieldset class="mt-5 pt-4 border-t border-white/5">
+          <legend class="text-sm text-slate-300 mb-2">Länge der Zusammenfassung</legend>
+          <div class="flex flex-wrap gap-3 text-sm">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="briefing-length" value="1" class="accent-ember-500" checked />
+              <span class="text-slate-200">1× (Standard)</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="briefing-length" value="2" class="accent-ember-500" />
+              <span class="text-slate-200">2× (doppelt so lang)</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="briefing-length" value="3" class="accent-ember-500" />
+              <span class="text-slate-200">3× (dreimal so lang)</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="briefing-length" value="4" class="accent-ember-500" />
+              <span class="text-slate-200">4× (viermal so lang)</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="briefing-length" value="5" class="accent-ember-500" />
+              <span class="text-slate-200">5× (fünfmal so lang)</span>
+            </label>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Steuert, wie ausführlich das tägliche Briefing oben in „Übersicht" geschrieben wird (mehr Absätze pro Rubrik, mehr Sätze pro Item). Wirkt beim nächsten „Zusammenfassen".</p>
+        </fieldset>
+      </div>
+
+      <!-- Issue 24: Kalender — Datei-Upload & Clipboard-Paste -->
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">Mein Kalender</h2>
+        <p class="text-sm text-slate-400 mb-4">Lade Text- oder PDF-Dateien mit Kalendereinträgen hoch (z.B. Outlook-/Google-Calendar-Exporte, Vereinsplan, Konzert-Programm), oder füge Termin-Text aus der Zwischenablage ein. Die KI extrahiert daraus konkrete Einzeltermine (Titel, Datum, Uhrzeit, Ort) und legt sie in deinen lokalen Kalender. Beim nächsten „Zusammenfassen" tauchen sie als zusätzliche Events in deiner Übersicht auf.</p>
+
+        <div class="flex flex-col sm:flex-row gap-3">
+          <label id="cal-drop-zone" class="grow block rounded-xl border-2 border-dashed border-white/10 hover:border-ember-500/50 bg-ink-900/50 p-5 text-center cursor-pointer transition">
+            <input id="cal-file-input" type="file" accept=".txt,.md,.csv,.pdf,application/pdf,text/plain" class="hidden" />
+            <div class="text-3xl mb-1">📅</div>
+            <div class="text-sm text-slate-300">Datei hier ablegen oder klicken zum Auswählen</div>
+            <div class="text-xs text-slate-500 mt-1">TXT, MD, CSV, PDF · max ~10 MB</div>
+          </label>
+          <div class="grow">
+            <button id="btn-cal-paste" class="w-full h-full min-h-[7rem] rounded-xl border border-white/10 bg-ink-900/50 hover:bg-ink-900 hover:border-ember-500/40 text-sm transition flex flex-col items-center justify-center gap-1 p-4">
+              <span class="text-3xl">📋</span>
+              <span class="text-slate-200">Aus Zwischenablage einfügen</span>
+              <span class="text-xs text-slate-500">Strg+V im Textfeld — wir extrahieren Termine.</span>
+            </button>
+          </div>
+        </div>
+        <textarea id="cal-paste-area" rows="4" class="hidden mt-3 w-full rounded-xl bg-ink-900 border border-white/10 px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ember-500/60" placeholder="Hier Termine einfügen — z.B. ‚Freitag 18 Uhr Geburtstag Anna, im Kafé Konstanz‘"></textarea>
+        <div class="hidden mt-2 flex flex-wrap gap-2" id="cal-paste-actions">
+          <button id="btn-cal-paste-submit" class="px-3 py-1.5 rounded-lg bg-ember-500 hover:bg-ember-400 text-ink-900 text-sm font-semibold transition">Termine extrahieren</button>
+          <button id="btn-cal-paste-cancel" class="px-3 py-1.5 rounded-lg bg-ink-700 hover:bg-ink-600 text-slate-100 text-sm border border-white/10 transition">Abbrechen</button>
+        </div>
+
+        <div id="cal-status" class="text-xs text-slate-400 mt-3"></div>
+
+        <div class="mt-4">
+          <div class="flex items-baseline justify-between">
+            <h3 class="font-display text-base font-semibold text-slate-100">Eingelesene Termine</h3>
+            <button id="btn-cal-clear" class="text-xs text-rose-300 hover:text-rose-200">Alle löschen</button>
+          </div>
+          <div id="cal-list" class="mt-2 space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">Benachrichtigungen</h2>
+        <p class="text-sm text-slate-400 mb-4">Aktien-Warnungen kommen als System-Benachrichtigung. Die App muss dafür einmal die Erlaubnis bekommen.</p>
+        <button id="btn-notify-perm" class="text-sm px-3 py-1.5 rounded-lg bg-ink-700 hover:bg-ink-600 border border-white/10 transition">
+          Browser-Benachrichtigungen aktivieren
+        </button>
+        <span id="notify-status" class="ml-3 text-xs text-slate-500"></span>
+      </div>
+
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">Daten löschen</h2>
+        <p class="text-sm text-slate-400 mb-4">Alles liegt ausschließlich im Browser (localStorage). Hier kannst du es zurücksetzen.</p>
+        <button id="btn-reset" class="text-sm px-3 py-1.5 rounded-lg bg-rose-700/80 hover:bg-rose-700 transition">Alle lokalen Daten löschen</button>
+      </div>
+    </section>
+
+    <!-- ============ TAB: PORTFOLIO ============ -->
+    <section data-pane="portfolio" class="space-y-6 hidden">
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">Mein Aktien-Portfolio</h2>
+        <p class="text-sm text-slate-400 mb-4">Symbole (z.B. <code>AAPL</code>, <code>SAP.DE</code>, <code>BTC-USD</code>) werden für Aktien-Updates abgefragt und für News-Suchen benutzt. Die Schwelle für Benachrichtigungen extrahiert die KI aus deinen Interessen-Text.</p>
+
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-slate-400 border-b border-white/10">
+              <th class="pb-2 font-medium w-32">Symbol</th>
+              <th class="pb-2 font-medium">Name</th>
+              <th class="pb-2 font-medium w-32 text-right">Letzter Kurs</th>
+              <th class="pb-2 w-10"></th>
+            </tr>
+          </thead>
+          <tbody id="portfolio-rows"></tbody>
+        </table>
+
+        <div class="flex flex-wrap items-end gap-2 mt-4">
+          <div class="grow min-w-[8rem]">
+            <label class="block text-xs text-slate-400 mb-1">Symbol</label>
+            <input id="new-symbol" type="text" class="w-full rounded-lg bg-ink-900 border border-white/10 px-3 py-2 text-sm uppercase placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ember-500/60" placeholder="AAPL" />
+          </div>
+          <div class="grow min-w-[12rem]">
+            <label class="block text-xs text-slate-400 mb-1">Name (optional)</label>
+            <input id="new-name" type="text" class="w-full rounded-lg bg-ink-900 border border-white/10 px-3 py-2 text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ember-500/60" placeholder="Apple Inc." />
+          </div>
+          <button id="btn-add-stock" class="px-4 py-2 rounded-lg bg-ember-500 hover:bg-ember-400 text-ink-900 font-semibold transition">+ Hinzufügen</button>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-white/10 bg-ink-800/60 backdrop-blur p-5 sm:p-6">
+        <h2 class="font-display text-2xl font-bold mb-1">Aus Dokument extrahieren</h2>
+        <p class="text-sm text-slate-400 mb-4">Lade Screenshot (PNG/JPG) oder PDF deines Depots hoch. Tesseract liest den Text, die KI erkennt Ticker.</p>
+        <label id="drop-zone" class="block rounded-xl border-2 border-dashed border-white/10 hover:border-ember-500/50 bg-ink-900/50 p-8 text-center cursor-pointer transition">
+          <input id="file-input" type="file" accept="image/*,application/pdf" class="hidden" />
+          <div class="text-4xl mb-2">📄</div>
+          <div class="text-sm text-slate-300">Datei hier ablegen oder klicken zum Auswählen</div>
+          <div class="text-xs text-slate-500 mt-1">JPG, PNG, PDF · max ~10 MB</div>
+        </label>
+        <div id="upload-status" class="text-xs text-slate-400 mt-3"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-white/5 mt-12">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 text-xs text-slate-500 flex flex-col sm:flex-row gap-2 justify-between">
+      <span>Wunderlampe News · Daten bleiben lokal im Browser.</span>
+      <span id="footer-llm-line">LLM: DeepSeek V4 (Flash) · Suche: DuckDuckGo · Kurse: Yahoo Finance</span>
+    </div>
+  </footer>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div class="rounded-xl bg-ink-700 border border-white/10 shadow-lg px-4 py-3 text-sm" id="toast-content"></div>
+  </div>
+
+  <!-- Issue 24: KI-Assistent — floating Button unten rechts + Chat-Panel mit RAG -->
+  <button id="btn-assistant-toggle"
+          class="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 px-4 py-3 rounded-full bg-ember-500 hover:bg-ember-400 text-ink-900 font-semibold shadow-glow transition"
+          title="KI-Assistent öffnen (RAG über deine gesammelten News)">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 2C6.48 2 2 6.05 2 11c0 2.4 1.05 4.58 2.78 6.18-.27 1.02-.94 2.36-2.06 3.54.04.04.08.07.13.1 2.45.42 4.74-.46 6.27-1.57 1.13.34 2.32.53 3.55.53 5.52 0 10-4.05 10-9s-4.48-9-10-9zm-1 13H8v-2h3v2zm5 0h-3v-2h3v2zm.1-5.1c-.18.36-.46.7-.86 1.04l-.78.65c-.27.23-.46.45-.55.66-.09.21-.13.46-.13.75H11c0-.5.1-.92.31-1.27.21-.34.55-.71 1.02-1.1l.5-.42c.15-.13.27-.26.36-.4.09-.13.13-.27.13-.43 0-.2-.06-.36-.18-.48-.12-.12-.31-.18-.55-.18-.21 0-.4.06-.56.19a.78.78 0 00-.27.55h-2c.04-.6.27-1.07.7-1.43.42-.36.99-.54 1.7-.54.74 0 1.32.18 1.75.55.43.36.65.83.65 1.42 0 .27-.05.5-.12.7z"/></svg>
+    <span class="hidden sm:inline">Assistent</span>
+  </button>
+
+  <div id="assistant-panel"
+       class="hidden fixed inset-x-3 bottom-3 sm:inset-auto sm:right-6 sm:bottom-24 sm:w-[420px] sm:max-w-[calc(100vw-3rem)] z-50 rounded-2xl border border-ember-500/30 bg-ink-800/95 backdrop-blur shadow-2xl flex flex-col"
+       style="max-height: calc(100vh - 6rem);">
+    <header class="flex items-center gap-3 p-4 border-b border-white/10">
+      <span class="text-2xl">💡</span>
+      <div class="grow min-w-0">
+        <div class="font-display text-base font-semibold text-slate-100">KI-Assistent</div>
+        <div class="text-xs text-slate-400" id="assistant-status">Fragt euch durch alle gesammelten News (RAG).</div>
+      </div>
+      <button id="btn-assistant-clear" class="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md hover:bg-white/5" title="Verlauf löschen">↻</button>
+      <button id="btn-assistant-close" class="text-slate-400 hover:text-slate-100 p-1" title="Schließen">✕</button>
+    </header>
+
+    <div id="assistant-log" class="grow overflow-y-auto p-4 space-y-3 text-sm text-slate-200">
+      <div class="text-xs text-slate-400 leading-relaxed">
+        Beispiele:
+        „Was steht heute in den Lokalnachrichten?"
+        · „Gibt es News zu meinen Aktien?"
+        · „Was hat Kurzgesagt zuletzt veröffentlicht?"
+        · „Liste alle Events am Wochenende."
+        <br/><br/>
+        <span class="text-slate-500">Datenbasis: die News, die beim letzten „Zusammenfassen" indexiert wurden (RAG-Namespace pro Browser).</span>
+      </div>
+    </div>
+
+    <form id="assistant-form" class="flex items-center gap-2 p-3 border-t border-white/10">
+      <input id="assistant-input" type="text" autocomplete="off"
+             class="grow rounded-lg bg-ink-900 border border-white/10 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-ember-500/60"
+             placeholder="Frage stellen… (z.B. „Worum geht's bei den Lokal-News?")" />
+      <button id="btn-assistant-send" type="submit" class="px-3 py-2 rounded-lg bg-ember-500 hover:bg-ember-400 text-ink-900 font-semibold transition">Senden</button>
+    </form>
+  </div>
+
+  <!-- Issue 8: News-Karten werden vollständig in JS aufgebaut (buildNewsCard /
+       buildCompactRow / buildEventCard in app.js) — keine HTML-Templates mehr. -->
+
+  <script src="./app.js"></script>
+</body>
+</html>
