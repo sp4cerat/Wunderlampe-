@@ -39,6 +39,7 @@ Three modes:
 |------|--------|---------|
 | `period` | all of `[0, N)`, `N = lcm(M)` | **exact**: SAT ⟹ a real covering system exists (max mod ≤ B); UNSAT ⟹ none does. Limited by how fast `N` grows. |
 | `interval L` | `[0, L)` | cheaper **necessary** relaxation: UNSAT ⟹ exclusion (can't even cover `[0,L)`); SAT ⟹ inconclusive (reports first integer it misses). |
+| `cegar` | a lazily-grown point set | start from a small seed; on each SAT model add the **first uncovered integer** and re-solve (incremental). UNSAT ⟹ a compact finite **obstruction certificate** (with `--minimize`, every point is necessary). |
 | `maxsat` | maximise covered residues in `[0, N)` | how far short the *best* choice falls (RC2). |
 
 Both `period`-UNSAT and `interval`-UNSAT are valid exclusions: `[0, L) ⊂ Z`, so failing to
@@ -60,6 +61,20 @@ cover a finite window already rules out covering `Z`.
   `[0,100)` (SAT) but first misses `103` in the full period — so a fixed short window stops
   being an obstruction once `B` is large enough to cover it. Longer/structured windows are
   needed.
+- **Minimal obstruction certificates (CEGAR, `--minimize`).** The smallest uncoverable set
+  this tool finds is, for each `B`, a *block of consecutive integers* whose length grows
+  with `B`:
+
+  | max modulus ≤ B | minimal uncoverable run | length |
+  |---|---|---|
+  | 15 | `[27 … 44]` | 18 |
+  | 19 | `[26 … 56]` | 31 |
+  | 21 | `[24 … 62]` | 39 |
+
+  i.e. "no `L` consecutive integers can be covered by distinct odd moduli ≤ B" for these
+  `L` — a clean, independently re-checkable certificate (re-verified in-tool, and the test
+  suite proves minimality by single-point deletion). This reframes the bound as a
+  Jacobsthal-type "longest coverable run" question.
 - **Best coverage (`B = 15`):** the best possible choice covers `32805 / 45045 = 72.83 %`
   of the period — short by `12240` residues, not narrowly. (Reported value; RC2 MaxSAT
   times out at this scale here — see NOTES.)
@@ -89,6 +104,13 @@ These are honest *partial* results: they bound how small a counterexample could 
   per step (`B=21`: 0.8 s, `B=23`: 9 s, `B=25`: 100 s), so this encoding stalls past
   `B = 25` where an ILP still decides `B = 31`. Better cardinality/symmetry handling (or
   MILP) is needed to push the modulus bound higher.
+- **CEGAR does *not* break the SAT wall.** Lazily adding only the points that matter gives
+  lovely compact certificates up to `B ≈ 21`, but for `B ≥ 27` the **single refutation
+  solve is itself the bottleneck** — already proving the seed window uncoverable exhausts
+  the conflict budget (the difficulty is in the proof, not the number of points). So CEGAR
+  helps *readability* of the certificate, not *reach*. The reason an ILP gets to `B = 31`
+  is its LP relaxation, which CDCL/SAT lacks — pointing squarely at an ILP backend as the
+  way forward. (`--conf-budget` makes the tool give up gracefully instead of hanging.)
 
 ## Next steps
 
@@ -114,6 +136,8 @@ python3 -m venv .venv && ./.venv/bin/pip install python-sat
 ./.venv/bin/python cover_sat.py --B 17 --mode period      # definitive UNSAT (max mod ≤ 17)
 ./.venv/bin/python cover_sat.py --B 25 --mode interval --L 100   # exclusion (~100 s)
 ./.venv/bin/python cover_sat.py --B 41 --mode interval --L 100   # SAT, but misses 103
+./.venv/bin/python cover_sat.py --B 21 --mode cegar --minimize   # minimal obstruction (39 consec.)
+./.venv/bin/python cover_sat.py --B 27 --mode cegar --conf-budget 300000  # graceful give-up (the wall)
 ./.venv/bin/python cover_sat.py --B 15 --mode maxsat      # 72.83% best coverage (slow: RC2)
 ```
 

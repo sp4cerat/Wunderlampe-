@@ -72,6 +72,27 @@ The best possible odd-distinct choice at `B=15` falls far short (not a near miss
 so this tool has not yet reproduced the 72.83 % figure — it is the externally-reported value.
 A faster MaxSAT engine or a problem-specific search is needed to confirm it.
 
+### CEGAR (lazy growing-window) + minimal certificates
+
+`--mode cegar`: one incremental solver with the exactly-one hard clauses; seed a small
+window, and on each SAT model add the first uncovered integer (scan ≤ min(lcm, scan_limit))
+as a new cover clause, reusing learned clauses. UNSAT ⟹ the accumulated points are
+uncoverable; `--minimize` deletes redundant points (single-point deletion) to a minimal
+certificate, re-verified independently.
+
+| max mod ≤ B | minimal uncoverable run | length | solve |
+|---|---|---|---|
+| 15 | [27..44] | 18 | 0.00 s |
+| 19 | [26..56] | 31 | 0.14 s |
+| 21 | [24..62] | 39 | 1.11 s |
+
+The minimal obstruction is a **block of consecutive integers** (a "longest coverable run"
+/ Jacobsthal-type quantity). For B ≥ 27 the *single refutation solve* already exhausts an
+8M-conflict budget (>120 s): proving even the seed window [0,3B) uncoverable is the wall,
+not the point count. So CEGAR improves certificate readability, not reach. `--conf-budget`
+makes it give up gracefully (`SOLVE_BUDGET after 1 rounds` at B=27). An ILP reaches B≤31
+because of its LP relaxation, which CDCL lacks → ILP backend is the way to push further.
+
 ## Soundness
 
 - Exclusions are exact UNSAT from a complete CNF; interval UNSAT is valid because
@@ -81,9 +102,12 @@ A faster MaxSAT engine or a problem-specific search is needed to confirm it.
 
 ## Next steps
 
-1. **Lazy growing-window CEGAR:** solve `[0,L)`; on SAT, add the model's first uncovered
-   integer as a new constraint point and re-solve; iterate to a minimal finite obstruction
-   per `B`. Most promising lever to push the modulus bound past 31.
-2. Stronger AMO/cardinality encoding + residue-symmetry breaking, or an ILP backend.
+1. ~~Lazy growing-window CEGAR~~ — **done** (`--mode cegar`). Gives minimal certificates up
+   to B≈21 but does NOT break the SAT refutation wall at B≥27 (the proof, not the point
+   count, is hard). Readability win, not reach win.
+2. **ILP backend** (the real lever): the LP relaxation is why an ILP reaches B≤31 where
+   CDCL stalls. Add a PuLP/CBC or Gurobi model of the same exactly-one + cover constraints
+   to push the excluded-modulus bound higher; combine with the CEGAR loop for certificates.
+3. Stronger AMO/cardinality encoding + residue-symmetry breaking on the SAT side.
 3. `B=19` full period if memory allows (definitive bound → max mod ≤ 19).
 4. Mine near-optimal MaxSAT assignments for the CRT structure of uncovered residues.

@@ -2,7 +2,7 @@
 """Regression tests for the odd distinct covering search."""
 import math
 from cover_sat import (odd_moduli, density, solve_period, solve_interval,
-                       _covers, _first_uncovered)
+                       cegar_exclude, _is_unsat, _covers, _first_uncovered)
 
 
 def test_odd_moduli():
@@ -32,6 +32,19 @@ def test_interval_excludes_small_B():
     for B in (15, 19, 21):
         status, info = solve_interval(B, 100)
         assert status == "UNSAT", (B, status)
+
+
+def test_cegar_excludes_and_certifies():
+    # CEGAR must reach the same exclusion as the full period for B=15, and the
+    # minimised obstruction it returns must be independently uncoverable.
+    status, info = cegar_exclude(15, minimize=True)
+    assert status == "UNSAT", status
+    assert info["n_points"] > 0
+    assert _is_unsat(info["M"], info["obstruction"])        # re-verify certificate
+    # and the certificate is truly minimal: dropping any point makes it coverable
+    obs = info["obstruction"]
+    for i in range(len(obs)):
+        assert not _is_unsat(info["M"], obs[:i] + obs[i + 1:])
 
 
 def test_verify_helpers():

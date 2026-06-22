@@ -147,6 +147,119 @@ def solve_interval(B: int, L: int, solver: str = "cadical195"):
         return "UNSAT", dict(M=M, L=L, chosen=None, secs=secs)
 
 
+def _is_unsat(M: List[int], points, solver: str = "cadical195") -> bool:
+    """True iff the moduli M cannot cover the given finite set of integers."""
+    from pysat.solvers import Solver
+    pool = VarPool()
+    clauses = exactly_one_clauses(pool, M)
+    for t in points:
+        clauses.append(cover_clause(pool, M, t))
+    with Solver(name=solver, bootstrap_with=clauses) as s:
+        return not s.solve()
+
+
+def _minimize_obstruction(M: List[int], points, solver: str = "cadical195"):
+    """Deletion-based minimisation: drop points while the set stays uncoverable.
+
+    Returns a subset that is still UNSAT but minimal w.r.t. single-point deletion
+    (every point is necessary). A valid, compact finite obstruction certificate."""
+    keep = list(points)
+    i = 0
+    while i < len(keep):
+        trial = keep[:i] + keep[i + 1:]
+        if trial and _is_unsat(M, trial, solver):
+            keep = trial                      # point i was redundant
+        else:
+            i += 1                            # point i is necessary
+    return keep
+
+
+def _solve_budgeted(s, conf_budget: int | None):
+    """Run s.solve() with a per-call CONFLICT budget (reliable across solvers; the
+    async interrupt timer is silently ignored by the CaDiCaL bindings).
+
+    Returns True (SAT) / False (UNSAT) / None (budget exceeded -> unknown)."""
+    if conf_budget is None or conf_budget <= 0:
+        return s.solve()
+    s.conf_budget(int(conf_budget))
+    return s.solve_limited(expect_interrupt=False)
+
+
+def cegar_exclude(B: int, scan_limit: int = 100_000, max_iters: int = 5000,
+                  solver: str = "cadical195", time_limit: float | None = None,
+                  conf_budget: int | None = None, minimize: bool = False):
+    """Lazy growing-window CEGAR.
+
+    Keep one incremental SAT solver with the exactly-one hard constraints. Start with
+    a small seed of cover points; on each SAT model, find the FIRST integer it leaves
+    uncovered (scanning up to min(lcm, scan_limit)) and add that single cover clause,
+    reusing learned clauses across rounds. Terminates as:
+
+      UNSAT        -> the accumulated point set is uncoverable by odd moduli <= B
+                      (a finite obstruction certificate => exclusion).
+      COVER        -> a model covers the entire period [0, lcm): a real covering system!
+      INCONCLUSIVE -> SAT but no uncovered point within scan_limit (< lcm): inconclusive.
+      TIMEOUT/MAXITERS -> resource cap hit.
+    """
+    from pysat.solvers import Solver
+    M = odd_moduli(B)
+    N = math.lcm(*M)
+    scan_cap = min(N, scan_limit)
+    t0 = time.time()
+
+    pool = VarPool()
+    s = Solver(name=solver, use_timer=True)
+    for cl in exactly_one_clauses(pool, M):     # allocates ALL x[n][a] vars
+        s.add_clause(cl)
+    added = []
+    seen = set()
+    for t in range(min(N, 3 * B)):              # modest seed window
+        s.add_clause(cover_clause(pool, M, t))
+        added.append(t); seen.add(t)
+
+    it = 0
+    while True:
+        it += 1
+        res = _solve_budgeted(s, conf_budget)
+        if res is None:                          # per-solve conflict budget exceeded
+            s.delete()
+            return "SOLVE_BUDGET", dict(M=M, N=N, iters=it, n_points=len(added),
+                                        secs=time.time() - t0)
+        if not res:
+            secs = time.time() - t0
+            obstruction = added
+            if minimize:
+                obstruction = _minimize_obstruction(M, added, solver)
+            s.delete()
+            return "UNSAT", dict(M=M, N=N, obstruction=sorted(obstruction),
+                                 n_points=len(obstruction), raw_points=len(added),
+                                 iters=it, secs=secs)
+        chosen = _model_residues(pool, M, set(v for v in s.get_model() if v > 0))
+        miss = -1
+        for t in range(scan_cap):
+            if t not in seen and not _covers(chosen, t):
+                miss = t
+                break
+        if miss == -1:
+            secs = time.time() - t0
+            full = (scan_cap >= N) and _first_uncovered(chosen, N) == -1
+            s.delete()
+            if full:
+                return "COVER", dict(M=M, N=N, chosen=chosen, iters=it, secs=secs)
+            return "INCONCLUSIVE", dict(M=M, N=N, chosen=chosen, scanned=scan_cap,
+                                        iters=it, secs=secs)
+        s.add_clause(cover_clause(pool, M, miss))
+        added.append(miss); seen.add(miss)
+        if time_limit is not None and time.time() - t0 > time_limit:
+            s.delete()
+            return "TIMEOUT", dict(M=M, N=N, iters=it, n_points=len(added),
+                                   secs=time.time() - t0)
+        if it >= max_iters:
+            s.delete()
+            return "MAXITERS", dict(M=M, N=N, iters=it, n_points=len(added),
+                                    secs=time.time() - t0)
+
+
 def max_coverage(B: int):
     """MaxSAT (RC2): best possible coverage of [0, N).  Returns covered / N."""
     from pysat.formula import WCNF
@@ -178,10 +291,18 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--B", type=int, default=15, help="max odd modulus (uses {3,5,...,B})")
-    ap.add_argument("--mode", choices=["period", "interval", "maxsat", "density"],
+    ap.add_argument("--mode", choices=["period", "interval", "maxsat", "density", "cegar"],
                     default="period")
     ap.add_argument("--L", type=int, default=100, help="interval length for --mode interval")
     ap.add_argument("--solver", default="cadical195")
+    ap.add_argument("--scan-limit", type=int, default=100_000,
+                    help="cegar: how far to scan for the first uncovered integer")
+    ap.add_argument("--max-iters", type=int, default=5000, help="cegar: iteration cap")
+    ap.add_argument("--time-limit", type=float, default=None, help="cegar: overall seconds cap")
+    ap.add_argument("--conf-budget", type=int, default=None,
+                    help="cegar: per-solve() conflict budget (graceful give-up; e.g. 5000000)")
+    ap.add_argument("--minimize", action="store_true",
+                    help="cegar: minimise the obstruction certificate on UNSAT")
     args = ap.parse_args()
 
     M = odd_moduli(args.B)
@@ -216,6 +337,32 @@ def main() -> None:
                   f"{miss if miss != -1 else 'none — actually a full cover!'}")
             if miss != -1:
                 print(f"    {_fmt_chosen(info['chosen'])}")
+
+    elif args.mode == "cegar":
+        status, info = cegar_exclude(args.B, scan_limit=args.scan_limit,
+                                     max_iters=args.max_iters, solver=args.solver,
+                                     time_limit=args.time_limit,
+                                     conf_budget=args.conf_budget, minimize=args.minimize)
+        if status == "UNSAT":
+            print(f"UNSAT in {info['secs']:.2f}s ({info['iters']} rounds) → exclusion: no odd "
+                  f"distinct covering with max modulus ≤ {args.B}")
+            obs = info["obstruction"]
+            tag = "minimal" if args.minimize else "lazy"
+            print(f"    finite obstruction certificate ({tag}, {info['n_points']} integers"
+                  f"{'' if args.minimize else f', from {info['raw_points']} added'}): {obs}")
+            # independent re-verification of the certificate
+            ok = _is_unsat(info["M"], obs, args.solver)
+            print(f"    re-verified uncoverable: {ok}")
+        elif status == "COVER":
+            print(f"*** COVER (VERIFIED): odd distinct covering system exists, max mod ≤ {args.B}!"
+                  f"  ({info['iters']} rounds, {info['secs']:.2f}s)")
+            print(f"    {_fmt_chosen(info['chosen'])}")
+        elif status == "INCONCLUSIVE":
+            print(f"INCONCLUSIVE in {info['secs']:.2f}s: SAT, no miss within scan_limit="
+                  f"{info['scanned']} (< period {info['N']}). Raise --scan-limit.")
+        else:
+            print(f"{status} after {info['iters']} rounds / {info['secs']:.2f}s "
+                  f"({info.get('n_points','?')} points). Raise the cap.")
 
     elif args.mode == "maxsat":
         r = max_coverage(args.B)
