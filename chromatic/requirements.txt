@@ -1,0 +1,2 @@
+# SAT backend (CaDiCaL / Glucose bindings + cardinality encodings)
+python-sat==1.9.dev5
