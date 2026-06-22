@@ -1,0 +1,2 @@
+# SAT/MaxSAT backend (CaDiCaL/Glucose + RC2)
+python-sat
