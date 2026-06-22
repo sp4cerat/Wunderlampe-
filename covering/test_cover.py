@@ -47,6 +47,17 @@ def test_cegar_excludes_and_certifies():
         assert not _is_unsat(info["M"], obs[:i] + obs[i + 1:])
 
 
+def test_ilp_matches_sat_small():
+    # ILP infeasibility must agree with SAT unsat on the same finite point sets.
+    import cover_ilp
+    assert cover_ilp.is_infeasible(odd_moduli(15), range(100))      # excluded
+    assert not cover_ilp.is_infeasible(odd_moduli(15), range(10))   # coverable
+    # ILP CEGAR reaches the same exclusion + a re-verified minimal certificate at B=15
+    status, info = cover_ilp.cegar(15, minimize=True)
+    assert status == "INFEASIBLE", status
+    assert cover_ilp.is_infeasible(info["M"], info["obstruction"])
+
+
 def test_verify_helpers():
     chosen = {3: 0, 5: 1}            # covers t with t%3==0 or t%5==1
     assert _covers(chosen, 0) and _covers(chosen, 6) and _covers(chosen, 1)

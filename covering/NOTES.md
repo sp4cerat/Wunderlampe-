@@ -72,6 +72,30 @@ The best possible odd-distinct choice at `B=15` falls far short (not a near miss
 so this tool has not yet reproduced the 72.83 % figure — it is the externally-reported value.
 A faster MaxSAT engine or a problem-specific search is needed to confirm it.
 
+### ILP backend (`cover_ilp.py`, CBC via PuLP)
+
+Same model as an integer program (`x[n,a]∈{0,1}`, `Σ_a x[n,a]=1`, `Σ_n x[n,t mod n]≥1`).
+CBC's LP relaxation + cuts refute the covering instances far faster than CDCL → reaches the
+exclusions SAT cannot.
+
+| B | window | CBC result | time |
+|---|---|---|---|
+| 15 | [0,100) | INFEASIBLE | 0.11 s |
+| 31 | [0,100) | INFEASIBLE | 30 s (SAT had stalled at B=25) |
+| 33 | [0,100) | **INFEASIBLE** | 59 s |
+| 35 | [0,105) | FEASIBLE (coverable) — needs larger window | |
+| 35 | cegar (grows to 112 pts) | TIMEOUT (still feasible, window must grow further) | 306 s |
+
+⇒ **No odd distinct covering system with max modulus ≤ 33** (extends the previous ≤31) ⟹ a
+counterexample must use a **modulus ≥ 35**. `B=35` is the current wall: `[0,L)` stays
+coverable past `L≈112`, so the obstruction window is large and CBC times out.
+
+Caveat: CBC infeasibility is branch-and-bound (floating point), not a formal certificate —
+same status as any MILP result. The small-`B` exclusions (≤21) additionally have
+SAT-verified minimal certificates. To make a high-`B` exclusion rigorous, minimise the
+obstruction (`cover_ilp.py --mode cegar --minimize`) and re-check the small certificate with
+the SAT solver.
+
 ### CEGAR (lazy growing-window) + minimal certificates
 
 `--mode cegar`: one incremental solver with the exactly-one hard clauses; seed a small
@@ -105,9 +129,11 @@ because of its LP relaxation, which CDCL lacks → ILP backend is the way to pus
 1. ~~Lazy growing-window CEGAR~~ — **done** (`--mode cegar`). Gives minimal certificates up
    to B≈21 but does NOT break the SAT refutation wall at B≥27 (the proof, not the point
    count, is hard). Readability win, not reach win.
-2. **ILP backend** (the real lever): the LP relaxation is why an ILP reaches B≤31 where
-   CDCL stalls. Add a PuLP/CBC or Gurobi model of the same exactly-one + cover constraints
-   to push the excluded-modulus bound higher; combine with the CEGAR loop for certificates.
-3. Stronger AMO/cardinality encoding + residue-symmetry breaking on the SAT side.
+2. ~~ILP backend~~ — **done** (`cover_ilp.py`, CBC/PuLP). Extended the exclusion to **max
+   modulus ≤ 33** (from ≤31). Next: a commercial solver (Gurobi), tighter cuts, or
+   residue-symmetry breaking to get `B≥35` (current wall — window must exceed ~112).
+3. Make high-`B` exclusions rigorous: minimise an ILP obstruction, re-verify with SAT.
+4. Stronger AMO/cardinality encoding + residue-symmetry breaking on the SAT side.
+5. `B=19` full period (definitive) if memory allows.
 3. `B=19` full period if memory allows (definitive bound → max mod ≤ 19).
 4. Mine near-optimal MaxSAT assignments for the CRT structure of uncovered residues.

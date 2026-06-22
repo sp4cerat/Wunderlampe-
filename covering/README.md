@@ -33,7 +33,9 @@ Boolean variables `x[n][a]` (residue of modulus `n` is `a`), with:
 - **hard:** exactly one residue per modulus;
 - **cover of integer `t`:** clause `OR_{n∈M} x[n][ t mod n ]` (some modulus hits `t`).
 
-Three modes:
+Four SAT modes (`cover_sat.py`), plus an **ILP backend** (`cover_ilp.py`, CBC via PuLP)
+with `interval` and `cegar` modes — identical model, but CBC's LP relaxation decides the
+hard infeasibilities CDCL/SAT cannot (this is what reaches max modulus ≤ 33):
 
 | mode | covers | meaning |
 |------|--------|---------|
@@ -54,9 +56,11 @@ cover a finite window already rules out covering `Z`.
 - **`B = 15` and `B = 17`: full-period UNSAT** (definitive over the complete period
   `N = 45045` resp. `765765`, ~0.1 s / 3 s) ⟹ **no odd distinct covering with max modulus
   ≤ 17**, despite density > 1.
-- **Interval `[0,100)` UNSAT for `B ≤ 25`** (≤ 100 s) ⟹ exclusion: any odd distinct
-  covering must use a **modulus ≥ 27**. (An ILP reaches `B ≤ 31` ⟹ modulus ≥ 33; see
-  "what doesn't help" for why plain SAT lags here.)
+- **Interval `[0,100)` UNSAT for `B ≤ 25`** (SAT, ≤ 100 s) ⟹ exclusion: any odd distinct
+  covering must use a modulus ≥ 27. The **ILP backend pushes this to `B ≤ 33`**
+  (`[0,100)` infeasible: `B=31` in 30 s, `B=33` in 59 s) ⟹ **a counterexample must use a
+  modulus ≥ 35.** `B=35` has `[0,105)` already coverable, so it needs a larger window /
+  more time and is the current wall.
 - **The interval relaxation breaks down for large `B`.** At `B = 41` a choice covers
   `[0,100)` (SAT) but first misses `103` in the full period — so a fixed short window stops
   being an obstruction once `B` is large enough to cover it. Longer/structured windows are
@@ -86,6 +90,10 @@ These are honest *partial* results: they bound how small a counterexample could 
 
 ## What helps
 
+- **ILP (CBC) for the hard exclusions.** The LP relaxation + cutting planes refute these
+  covering instances far faster than CDCL: `[0,100)` is infeasible in 30 s at `B=31` and
+  59 s at `B=33`, where SAT had already stalled at `B=25`. This is the single biggest lever
+  for pushing the excluded-modulus bound.
 - **Full-period SAT** gives *definitive* answers (not just necessary conditions) wherever
   `N = lcm(M)` is small enough to enumerate — clean and fast up to `B = 17`.
 - **Interval UNSAT** is a cheap, valid exclusion that reaches higher `B` than the full
@@ -102,8 +110,8 @@ These are honest *partial* results: they bound how small a counterexample could 
   with `B`, or be chosen structurally (e.g. around CRT-aligned residues).
 - **Plain SAT on the hard UNSAT instances.** Proving `[0,100)` uncoverable gets ~10× harder
   per step (`B=21`: 0.8 s, `B=23`: 9 s, `B=25`: 100 s), so this encoding stalls past
-  `B = 25` where an ILP still decides `B = 31`. Better cardinality/symmetry handling (or
-  MILP) is needed to push the modulus bound higher.
+  `B = 25` where the **ILP backend decides `B = 33`**. Use `cover_ilp.py` for the hard
+  exclusions; SAT remains the better tool for *verified minimal certificates* at small `B`.
 - **CEGAR does *not* break the SAT wall.** Lazily adding only the points that matter gives
   lovely compact certificates up to `B ≈ 21`, but for `B ≥ 27` the **single refutation
   solve is itself the bottleneck** — already proving the seed window uncoverable exhausts
@@ -114,15 +122,15 @@ These are honest *partial* results: they bound how small a counterexample could 
 
 ## Next steps
 
-- **Lazy-constraint / growing-window search:** start from `[0, L)`, and when a model is
-  found, add its first uncovered integer as a new point and re-solve — converging to a
-  minimal finite obstruction set per `B` (the most promising engineering lever).
-- **Stronger encoding:** sequential/totalizer at-most-one, colour/residue symmetry
-  breaking, or an ILP backend to push the excluded-modulus bound past 31.
-- **Full period for `B = 19`** (`N ≈ 1.45·10⁷`) to extend the definitive bound — memory-bound.
-- **Structure mining:** inspect the near-optimal MaxSAT assignments for the CRT pattern of
-  the uncovered residues, à la the "largest prime power" arguments, to look for a provable
-  obstruction.
+- **Push the ILP further (`B ≥ 35`).** `B=35` already covers `[0,105)`, so it needs a
+  larger window and more CBC time — a commercial solver (Gurobi), tighter cuts, or
+  residue-symmetry breaking would extend the excluded-modulus bound past 35.
+- **Verified certificates at higher `B`:** minimise an ILP-found obstruction, then re-check
+  the (small) certificate with the SAT solver for a rigorous, solver-independent proof
+  (CBC infeasibility is branch-and-bound, not a formal certificate).
+- **Full period for `B = 19`** (`N ≈ 1.45·10⁷`) to extend the *definitive* bound — memory-bound.
+- **Structure mining:** inspect near-optimal assignments for the CRT pattern of the
+  uncovered residues, à la the "largest prime power" arguments, for a provable obstruction.
 
 ---
 
@@ -137,8 +145,12 @@ python3 -m venv .venv && ./.venv/bin/pip install python-sat
 ./.venv/bin/python cover_sat.py --B 25 --mode interval --L 100   # exclusion (~100 s)
 ./.venv/bin/python cover_sat.py --B 41 --mode interval --L 100   # SAT, but misses 103
 ./.venv/bin/python cover_sat.py --B 21 --mode cegar --minimize   # minimal obstruction (39 consec.)
-./.venv/bin/python cover_sat.py --B 27 --mode cegar --conf-budget 300000  # graceful give-up (the wall)
+./.venv/bin/python cover_sat.py --B 27 --mode cegar --conf-budget 300000  # graceful give-up (SAT wall)
 ./.venv/bin/python cover_sat.py --B 15 --mode maxsat      # 72.83% best coverage (slow: RC2)
+
+# ILP backend (CBC) — reaches the exclusions SAT cannot:
+./.venv/bin/python cover_ilp.py --B 31 --mode interval --L 100   # INFEASIBLE ~30 s
+./.venv/bin/python cover_ilp.py --B 33 --mode interval --L 100   # INFEASIBLE ~59 s (modulus ≥ 35)
 ```
 
 See `NOTES.md` for the full timing table and the validated assignments.
