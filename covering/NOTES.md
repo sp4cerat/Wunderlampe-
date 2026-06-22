@@ -90,6 +90,36 @@ exclusions SAT cannot.
 counterexample must use a **modulus ≥ 35**. `B=35` is the current wall: `[0,L)` stays
 coverable past `L≈112`, so the obstruction window is large and CBC times out.
 
+#### Sharp threshold at B=33 (`find_min_window.py`, binary search on L)
+
+Infeasibility of `[0,L)` is monotone in `L`, so binary-search the threshold:
+
+| L | result | time |
+|---|---|---|
+| 50 | feasible | 0.0 s |
+| 75 | feasible | 1.4 s |
+| 88 | feasible | 15 s |
+| 94 | feasible | 38 s |
+| 96 | feasible | 69 s |
+| 97 | **INFEASIBLE** | 82 s |
+| 100 | INFEASIBLE | 59 s |
+
+**Minimal infeasible window = `[0,97)`**: the longest run of consecutive integers coverable
+by distinct odd moduli ≤ 33 is exactly **96**. The feasibility of `[0,96)` is rigorous — an
+explicit witness (`1(3) 2(5) 4(7) 3(9) 1(11) 2(13) 5(15) 0(17) 14(19) 2(21) 6(23) 8(25)
+9(27) 24(29) 7(31) 26(33)`) was extracted and independently re-verified to cover `[0,96)`
+with first gap at 96.
+
+**Rigor status of the B=33 exclusion:**
+- *Feasible direction* (`[0,96)` coverable): **rigorous** — explicit witness, independently
+  re-checked by recomputing coverage. No solver trust needed.
+- *Infeasible direction* (`[0,97)` uncoverable): rests on **CBC branch-and-bound**. An
+  independent SAT check (CaDiCaL, 60M-conflict budget) **timed out at ~6.5 min** without
+  deciding it — so the exclusion is trustworthy (CBC is a mature solver) but is *not* yet
+  independently cross-verified, and has no machine-checkable certificate. Closing this gap
+  (a smaller SAT-verifiable core, a Farkas/LP infeasibility certificate, or a second exact
+  solver) is open work.
+
 Caveat: CBC infeasibility is branch-and-bound (floating point), not a formal certificate —
 same status as any MILP result. The small-`B` exclusions (≤21) additionally have
 SAT-verified minimal certificates. To make a high-`B` exclusion rigorous, minimise the
@@ -132,7 +162,9 @@ because of its LP relaxation, which CDCL lacks → ILP backend is the way to pus
 2. ~~ILP backend~~ — **done** (`cover_ilp.py`, CBC/PuLP). Extended the exclusion to **max
    modulus ≤ 33** (from ≤31). Next: a commercial solver (Gurobi), tighter cuts, or
    residue-symmetry breaking to get `B≥35` (current wall — window must exceed ~112).
-3. Make high-`B` exclusions rigorous: minimise an ILP obstruction, re-verify with SAT.
+3. Make the high-`B` exclusions independently checkable: a SAT-verifiable small core (the
+   full `[0,97)` window timed out under SAT), a Farkas/LP infeasibility certificate from
+   CBC, or a second exact solver. (The feasible side already has explicit witnesses.)
 4. Stronger AMO/cardinality encoding + residue-symmetry breaking on the SAT side.
 5. `B=19` full period (definitive) if memory allows.
 3. `B=19` full period if memory allows (definitive bound → max mod ≤ 19).

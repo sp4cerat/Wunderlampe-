@@ -61,6 +61,13 @@ cover a finite window already rules out covering `Z`.
   (`[0,100)` infeasible: `B=31` in 30 s, `B=33` in 59 s) ⟹ **a counterexample must use a
   modulus ≥ 35.** `B=35` has `[0,105)` already coverable, so it needs a larger window /
   more time and is the current wall.
+- **Sharp threshold at `B = 33` (longest coverable run = 96).** Binary search
+  (`find_min_window.py`) pins the minimal infeasible window to **`[0,97)`**: 97 consecutive
+  integers cannot be covered by distinct odd moduli ≤ 33, while `[0,96)` *can* — and that
+  feasibility is backed by an **explicit, independently re-verified witness**:
+  `1(3) 2(5) 4(7) 3(9) 1(11) 2(13) 5(15) 0(17) 14(19) 2(21) 6(23) 8(25) 9(27) 24(29) 7(31) 26(33)`
+  covers `[0,96)` exactly (first gap at 96). So the longest run coverable by odd distinct
+  moduli ≤ 33 is exactly **96**.
 - **The interval relaxation breaks down for large `B`.** At `B = 41` a choice covers
   `[0,100)` (SAT) but first misses `103` in the full period — so a fixed short window stops
   being an obstruction once `B` is large enough to cover it. Longer/structured windows are
@@ -151,6 +158,7 @@ python3 -m venv .venv && ./.venv/bin/pip install python-sat
 # ILP backend (CBC) — reaches the exclusions SAT cannot:
 ./.venv/bin/python cover_ilp.py --B 31 --mode interval --L 100   # INFEASIBLE ~30 s
 ./.venv/bin/python cover_ilp.py --B 33 --mode interval --L 100   # INFEASIBLE ~59 s (modulus ≥ 35)
+./.venv/bin/python find_min_window.py 33                          # minimal infeasible window = [0,97)
 ```
 
 See `NOTES.md` for the full timing table and the validated assignments.
